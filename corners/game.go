@@ -14,8 +14,8 @@ func init() {
 
 const (
 	ScreenWidth  = 800
-	ScreenHeight = 600
-	boardSize    = 4
+	ScreenHeight = 800
+	boardSize    = 8
 )
 
 // Game represents a game state.

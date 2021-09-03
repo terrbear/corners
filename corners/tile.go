@@ -4,6 +4,7 @@ import (
 	"image/color"
 	"log"
 	"strconv"
+	"time"
 
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
@@ -54,19 +55,39 @@ func init() {
 
 // Tile represents a tile information including TileData and animation states.
 type Tile struct {
-	value    int
-	right    *Tile
-	left     *Tile
-	down     *Tile
-	up       *Tile
-	selected bool
+	value     int
+	team      int
+	generator bool
+	right     *Tile
+	down      *Tile
+	selected  bool
+	targeted  bool
+}
+
+type TileParams struct {
+	team      int
+	generator bool
+}
+
+func (t *Tile) generate() {
+	ticker := time.NewTicker(1 * time.Second)
+	for {
+		t.value++
+		<-ticker.C
+	}
 }
 
 // NewTile creates a new Tile object.
-func NewTile(value int) *Tile {
-	return &Tile{
-		value: value,
+func NewTile(params *TileParams) *Tile {
+	t := &Tile{
+		team:      params.team,
+		value:     0,
+		generator: params.generator,
 	}
+	if t.generator {
+		go t.generate()
+	}
+	return t
 }
 
 func (t *Tile) AddRight(right *Tile) *Tile {
@@ -83,13 +104,25 @@ func (t *Tile) AddDown(down *Tile) *Tile {
 }
 
 type UpdateParams struct {
-	clicked bool
+	selected *bool
+	targeted bool
 }
 
 // Update updates the tile's animation states.
 func (t *Tile) Update(params *UpdateParams) error {
-	t.selected = params.clicked
+	if params.selected != nil {
+		t.selected = *params.selected
+	}
+	t.targeted = params.targeted
 	return nil
+}
+
+// TODO rules that you can only select your own team squares
+
+func (t *Tile) Target(target *Tile) {
+	target.team = t.team
+	target.value += t.value
+	t.value = 0
 }
 
 func colorToScale(clr color.Color) (float64, float64, float64, float64) {
@@ -120,6 +153,21 @@ func init() {
 	tileImage.Fill(color.White)
 }
 
+func (t *Tile) bgColor() color.Color {
+	if t.selected {
+		return color.RGBA{0x00, 0x00, 0x00, 0xff}
+	} else if t.targeted {
+		return color.RGBA{0x00, 0x88, 0x00, 0xff}
+	}
+
+	switch t.team {
+	case 1:
+		return color.RGBA{0x00, 0x00, 0x88, 0xff}
+	default:
+		return color.NRGBA{0xee, 0xe4, 0xda, 0x59}
+	}
+}
+
 // Draw draws the current tile to the given boardImage.
 func (t *Tile) Draw(x, y int, boardImage *ebiten.Image) {
 	i, j := x, y
@@ -128,13 +176,9 @@ func (t *Tile) Draw(x, y int, boardImage *ebiten.Image) {
 	x = i*tileSize + (i+1)*tileMargin
 	y = j*tileSize + (j+1)*tileMargin
 	op.GeoM.Translate(float64(x), float64(y))
+	r, g, b, a := colorToScale(t.bgColor())
+	op.ColorM.Scale(r, g, b, a)
 	v := t.value
-	if t.selected {
-		op.ColorM.Scale(0, 0, 0, 1)
-	} else {
-		r, g, b, a := colorToScale(tileBackgroundColor(v))
-		op.ColorM.Scale(r, g, b, a)
-	}
 	boardImage.DrawImage(tileImage, op)
 	str := strconv.Itoa(v)
 

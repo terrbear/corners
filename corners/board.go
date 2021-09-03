@@ -16,18 +16,18 @@ type Board struct {
 
 // NewBoard generates a new Board with giving a size.
 func NewBoard(size int) *Board {
-	topLeft := NewTile(1)
+	topLeft := NewTile(&TileParams{generator: true, team: 1})
 
 	var anchor *Tile
 	for x := 0; x < size; x++ {
 		if anchor == nil {
 			anchor = topLeft
 		} else {
-			anchor = anchor.AddDown(NewTile(1))
+			anchor = anchor.AddDown(NewTile(&TileParams{}))
 		}
 		t := anchor
 		for y := 0; y < size; y++ {
-			t = t.AddRight(NewTile(1))
+			t = t.AddRight(NewTile(&TileParams{}))
 		}
 	}
 
@@ -45,8 +45,8 @@ func (b *Board) translate(mouse *image.Point) (int, int) {
 	if p.X < 0 || p.Y < 0 {
 		return -1, -1
 	}
-	x := p.X / tileSize
-	y := p.Y / tileSize
+	x := p.X / (tileSize + tileMargin)
+	y := p.Y / (tileSize + tileMargin)
 	return x, y
 }
 
@@ -61,13 +61,52 @@ func (b *Board) forEach(x, y int, tile *Tile, f func(int, int, *Tile) error) err
 	return nil
 }
 
+func boolptr(val bool) *bool {
+	return &val
+}
+
+func (b *Board) selected() *Tile {
+	var selected *Tile
+	b.forEach(0, 0, b.topLeft, func(x, y int, t *Tile) error {
+		if t.selected {
+			selected = t
+		}
+		return nil
+	})
+	return selected
+}
+
+func (b *Board) targeted() *Tile {
+	var targeted *Tile
+	b.forEach(0, 0, b.topLeft, func(x, y int, t *Tile) error {
+		if t.targeted {
+			targeted = t
+		}
+		return nil
+	})
+	return targeted
+}
+
 // Update updates the board state.
 func (b *Board) Update(input *Input) error {
 	clickedX, clickedY := b.translate(input.LeftMouse())
+	targetX, targetY := b.translate(input.RightMouse())
+
+	selected := b.selected()
+	targeted := b.targeted()
+
+	if selected != nil && targeted != nil && selected != targeted {
+		selected.Target(targeted)
+	}
+
 	err := b.forEach(0, 0, b.topLeft, func(x, y int, t *Tile) error {
-		return t.Update(&UpdateParams{
-			clicked: x == clickedX && y == clickedY,
-		})
+		params := UpdateParams{
+			targeted: x == targetX && y == targetY,
+		}
+		if clickedX >= 0 && clickedY >= 0 {
+			params.selected = boolptr(x == clickedX && y == clickedY && t.team != 0)
+		}
+		return t.Update(&params)
 	})
 	if err != nil {
 		return fmt.Errorf("error updating tiles: %s", err)
