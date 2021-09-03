@@ -2,6 +2,7 @@ package corners
 
 import (
 	"fmt"
+	"image"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -10,8 +11,8 @@ type mouseState int
 
 const (
 	mouseStateNone mouseState = iota
-	mouseStatePressing
-	mouseStateSettled
+	mouseStateDown
+	mouseStateUp
 )
 
 // Input represents the current key states.
@@ -26,6 +27,13 @@ func NewInput() *Input {
 	return &Input{}
 }
 
+func (i *Input) LeftMouse() *image.Point {
+	if i.mouseState == mouseStateDown {
+		return &image.Point{i.mouseX, i.mouseY}
+	}
+	return nil
+}
+
 // Update updates the current input states.
 func (i *Input) Update() {
 	switch i.mouseState {
@@ -34,14 +42,14 @@ func (i *Input) Update() {
 			x, y := ebiten.CursorPosition()
 			i.mouseX = x
 			i.mouseY = y
-			i.mouseState = mouseStatePressing
+			i.mouseState = mouseStateDown
 			fmt.Println("left mouse click: ", x, y)
 		}
-	case mouseStatePressing:
+	case mouseStateDown:
 		if !ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
-			i.mouseState = mouseStateSettled
+			i.mouseState = mouseStateUp
 		}
-	case mouseStateSettled:
+	case mouseStateUp:
 		i.mouseState = mouseStateNone
 	}
 }

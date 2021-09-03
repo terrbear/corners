@@ -2,6 +2,7 @@ package corners
 
 import (
 	"fmt"
+	"image"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -10,22 +11,23 @@ import (
 type Board struct {
 	size    int
 	topLeft *Tile
+	offset  image.Point
 }
 
 // NewBoard generates a new Board with giving a size.
 func NewBoard(size int) *Board {
-	topLeft := NewTile(0)
+	topLeft := NewTile(1)
 
 	var anchor *Tile
 	for x := 0; x < size; x++ {
 		if anchor == nil {
 			anchor = topLeft
 		} else {
-			anchor = anchor.AddDown(NewTile(0))
+			anchor = anchor.AddDown(NewTile(1))
 		}
 		t := anchor
 		for y := 0; y < size; y++ {
-			t = t.AddRight(NewTile(0))
+			t = t.AddRight(NewTile(1))
 		}
 	}
 
@@ -33,6 +35,19 @@ func NewBoard(size int) *Board {
 		size:    size,
 		topLeft: topLeft,
 	}
+}
+
+func (b *Board) translate(mouse *image.Point) (int, int) {
+	if mouse == nil {
+		return -1, -1
+	}
+	p := mouse.Sub(b.offset)
+	if p.X < 0 || p.Y < 0 {
+		return -1, -1
+	}
+	x := p.X / tileSize
+	y := p.Y / tileSize
+	return x, y
 }
 
 func (b *Board) forEach(x, y int, tile *Tile, f func(int, int, *Tile) error) error {
@@ -48,7 +63,12 @@ func (b *Board) forEach(x, y int, tile *Tile, f func(int, int, *Tile) error) err
 
 // Update updates the board state.
 func (b *Board) Update(input *Input) error {
-	err := b.forEach(0, 0, b.topLeft, func(x, y int, t *Tile) error { return t.Update() })
+	clickedX, clickedY := b.translate(input.LeftMouse())
+	err := b.forEach(0, 0, b.topLeft, func(x, y int, t *Tile) error {
+		return t.Update(&UpdateParams{
+			clicked: x == clickedX && y == clickedY,
+		})
+	})
 	if err != nil {
 		return fmt.Errorf("error updating tiles: %s", err)
 	}
@@ -66,6 +86,8 @@ func (b *Board) Size() (int, int) {
 // Draw draws the board to the given boardImage.
 func (b *Board) Draw(boardImage *ebiten.Image) {
 	boardImage.Fill(frameColor)
+
+	// TODO fix this; it's hoping you have a square
 	for j := 0; j < b.size; j++ {
 		for i := 0; i < b.size; i++ {
 			v := 0
@@ -75,6 +97,9 @@ func (b *Board) Draw(boardImage *ebiten.Image) {
 			op.GeoM.Translate(float64(x), float64(y))
 			r, g, b, a := colorToScale(tileBackgroundColor(v))
 			op.ColorM.Scale(r, g, b, a)
+			/*if j == 0 && i == 0 {
+				fmt.Printf("drawing tile bg image: %+v\n", tileImage.Bounds())
+			}*/
 			boardImage.DrawImage(tileImage, op)
 		}
 	}

@@ -1,7 +1,6 @@
 package corners
 
 import (
-	"fmt"
 	"image/color"
 	"log"
 	"strconv"
@@ -55,11 +54,12 @@ func init() {
 
 // Tile represents a tile information including TileData and animation states.
 type Tile struct {
-	value int
-	right *Tile
-	left  *Tile
-	down  *Tile
-	up    *Tile
+	value    int
+	right    *Tile
+	left     *Tile
+	down     *Tile
+	up       *Tile
+	selected bool
 }
 
 // NewTile creates a new Tile object.
@@ -82,8 +82,13 @@ func (t *Tile) AddDown(down *Tile) *Tile {
 	return down
 }
 
+type UpdateParams struct {
+	clicked bool
+}
+
 // Update updates the tile's animation states.
-func (t *Tile) Update() error {
+func (t *Tile) Update(params *UpdateParams) error {
+	t.selected = params.clicked
 	return nil
 }
 
@@ -124,8 +129,12 @@ func (t *Tile) Draw(x, y int, boardImage *ebiten.Image) {
 	y = j*tileSize + (j+1)*tileMargin
 	op.GeoM.Translate(float64(x), float64(y))
 	v := t.value
-	r, g, b, a := colorToScale(tileBackgroundColor(v))
-	op.ColorM.Scale(r, g, b, a)
+	if t.selected {
+		op.ColorM.Scale(0, 0, 0, 1)
+	} else {
+		r, g, b, a := colorToScale(tileBackgroundColor(v))
+		op.ColorM.Scale(r, g, b, a)
+	}
 	boardImage.DrawImage(tileImage, op)
 	str := strconv.Itoa(v)
 
@@ -141,6 +150,6 @@ func (t *Tile) Draw(x, y int, boardImage *ebiten.Image) {
 	h := (bound.Max.Y - bound.Min.Y).Ceil()
 	x = x + (tileSize-w)/2
 	y = y + (tileSize-h)/2 + h
-	fmt.Printf("drawing tile: str=%s x=%d y=%d\n", str, x, y)
+
 	text.Draw(boardImage, str, f, x, y, tileColor(v))
 }

@@ -1,6 +1,7 @@
 package corners
 
 import (
+	"image"
 	"math/rand"
 	"time"
 
@@ -54,12 +55,13 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		g.boardImage = ebiten.NewImage(w, h)
 	}
 	screen.Fill(backgroundColor)
-	g.board.Draw(g.boardImage)
 	op := &ebiten.DrawImageOptions{}
 	sw, sh := screen.Size()
 	bw, bh := g.boardImage.Size()
 	x := (sw - bw) / 2
 	y := (sh - bh) / 2
+	g.board.offset = image.Point{x, y}
+	g.board.Draw(g.boardImage)
 	op.GeoM.Translate(float64(x), float64(y))
 	screen.DrawImage(g.boardImage, op)
 }
