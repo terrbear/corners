@@ -11,6 +11,7 @@ type mouseState int
 
 const (
 	mouseStateNone mouseState = iota
+	mouseStateSettled
 	mouseStateDown
 	mouseStateUp
 )
@@ -57,9 +58,11 @@ func (i *Input) Update() {
 			i.left.state = mouseStateDown
 			fmt.Println("left mouse click: ", x, y)
 		}
-	case mouseStateDown:
+	case mouseStateDown, mouseStateSettled:
 		if !ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
 			i.left.state = mouseStateUp
+		} else {
+			i.left.state = mouseStateSettled
 		}
 	case mouseStateUp:
 		i.left.state = mouseStateNone
@@ -74,9 +77,11 @@ func (i *Input) Update() {
 			i.right.state = mouseStateDown
 			fmt.Println("right mouse click: ", x, y)
 		}
-	case mouseStateDown:
+	case mouseStateDown, mouseStateSettled:
 		if !ebiten.IsMouseButtonPressed(ebiten.MouseButtonRight) {
 			i.right.state = mouseStateUp
+		} else {
+			i.right.state = mouseStateSettled
 		}
 	case mouseStateUp:
 		i.right.state = mouseStateNone

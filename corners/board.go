@@ -3,37 +3,41 @@ package corners
 import (
 	"fmt"
 	"image"
+	"math"
+	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
 // Board represents the game board.
 type Board struct {
-	size    int
-	topLeft *Tile
-	offset  image.Point
+	size     int
+	tiles    [][]*Tile
+	offset   image.Point
+	bluebase *Tile
+	redbase  *Tile
 }
 
 // NewBoard generates a new Board with giving a size.
 func NewBoard(size int) *Board {
-	topLeft := NewTile(&TileParams{generator: true, team: 1})
-
-	var anchor *Tile
-	for x := 0; x < size; x++ {
-		if anchor == nil {
-			anchor = topLeft
-		} else {
-			anchor = anchor.AddDown(NewTile(&TileParams{}))
-		}
-		t := anchor
-		for y := 0; y < size; y++ {
-			t = t.AddRight(NewTile(&TileParams{}))
+	tiles := make([][]*Tile, size)
+	for x := range tiles {
+		tiles[x] = make([]*Tile, size)
+		for y := range tiles[x] {
+			tiles[x][y] = NewTile(&TileParams{x: x, y: y, resources: 1})
 		}
 	}
 
+	bluebase := NewTile(&TileParams{generator: true, team: 1})
+	redbase := NewTile(&TileParams{generator: true, team: 2, x: size - 1, y: size - 1})
+	tiles[0][0] = bluebase
+	tiles[size-1][size-1] = redbase
+
 	return &Board{
-		size:    size,
-		topLeft: topLeft,
+		size:     size,
+		tiles:    tiles,
+		redbase:  redbase,
+		bluebase: bluebase,
 	}
 }
 
@@ -50,14 +54,13 @@ func (b *Board) translate(mouse *image.Point) (int, int) {
 	return x, y
 }
 
-func (b *Board) forEach(x, y int, tile *Tile, f func(int, int, *Tile) error) error {
-	f(x, y, tile)
-	if tile.right != nil {
-		b.forEach(x+1, y, tile.right, f)
+func (b *Board) forEach(x, y int, f func(int, int, *Tile) error) error {
+	for col := range b.tiles {
+		for row := range b.tiles[col] {
+			f(col, row, b.tiles[col][row])
+		}
 	}
-	if tile.down != nil {
-		b.forEach(x, y+1, tile.down, f)
-	}
+
 	return nil
 }
 
@@ -67,7 +70,7 @@ func boolptr(val bool) *bool {
 
 func (b *Board) selected() *Tile {
 	var selected *Tile
-	b.forEach(0, 0, b.topLeft, func(x, y int, t *Tile) error {
+	b.forEach(0, 0, func(x, y int, t *Tile) error {
 		if t.selected {
 			selected = t
 		}
@@ -78,7 +81,7 @@ func (b *Board) selected() *Tile {
 
 func (b *Board) targeted() *Tile {
 	var targeted *Tile
-	b.forEach(0, 0, b.topLeft, func(x, y int, t *Tile) error {
+	b.forEach(0, 0, func(x, y int, t *Tile) error {
 		if t.targeted {
 			targeted = t
 		}
@@ -87,19 +90,123 @@ func (b *Board) targeted() *Tile {
 	return targeted
 }
 
+// TODO make this try to follow a diagonal
+func movementVector(from, to *Tile) (int, int) {
+	if from.x < to.x {
+		return 1, 0
+	} else if from.x > to.x {
+		return -1, 0
+	}
+
+	if from.y < to.y {
+		return 0, 1
+	} else if from.y > to.y {
+		return 0, -1
+	}
+	return 0, 0
+}
+
+type Transfer struct {
+	armies int
+	from   *Tile
+	to     *Tile
+}
+
+var transferRate = 500 * time.Millisecond
+
+// var transferRate = time.Millisecond
+
+func (b *Board) runTransfer(t *Transfer) {
+	ticker := time.NewTicker(transferRate)
+
+	for {
+		if t.armies <= 1 {
+			return
+		}
+		x, y := movementVector(t.from, t.to)
+		if x == 0 && y == 0 {
+			return
+		}
+
+		targetX, targetY := t.from.x+x, t.from.y+y
+
+		// fmt.Printf("moving %d armies from %d,%d to %d,%d\n", t.armies, t.from.x, t.from.y, targetX, targetY)
+
+		dest := b.tiles[targetX][targetY]
+
+		if dest.team != 0 && dest.team != t.from.team {
+			fmt.Println("calling attack!")
+			t.from.attack(dest)
+		}
+
+		if dest.team == 0 || dest.team == t.from.team || dest.armies == 0 {
+			t.armies = t.from.take(t.armies)
+			dest.add(t.from, t.armies)
+			t.from = dest
+		} else {
+			fmt.Println("grabbing low bar from armies")
+			t.armies = int(math.Min(float64(t.from.armies), float64(t.armies)))
+		}
+
+		if t.from == t.to {
+			return
+		}
+
+		fmt.Println("sleeping")
+		<-ticker.C
+	}
+}
+
+func (b *Board) transfer(source, dest *Tile) {
+	armies := source.armies
+
+	if armies == 0 {
+		return
+	}
+
+	fmt.Printf("source offered %d armies\n", armies)
+
+	t := Transfer{
+		armies: armies,
+		from:   source,
+		to:     dest,
+	}
+
+	go b.runTransfer(&t)
+}
+
 // Update updates the board state.
 func (b *Board) Update(input *Input) error {
+	red, blue := 0, 0
+
+	b.bluebase.resources = 0
+	b.redbase.resources = 0
+
+	b.forEach(0, 0, func(x, y int, t *Tile) error {
+		if t.team == 1 {
+			blue += t.resources
+		} else if t.team == 2 {
+			red += t.resources
+		}
+		return nil
+	})
+
+	// TODO lock this
+	b.bluebase.resources = blue
+	b.redbase.resources = red
+
 	clickedX, clickedY := b.translate(input.LeftMouse())
 	targetX, targetY := b.translate(input.RightMouse())
 
 	selected := b.selected()
 	targeted := b.targeted()
 
+	// fmt.Printf("selected: %+v\n", selected)
 	if selected != nil && targeted != nil && selected != targeted {
-		selected.Target(targeted)
+		b.transfer(selected, targeted)
 	}
 
-	err := b.forEach(0, 0, b.topLeft, func(x, y int, t *Tile) error {
+	err := b.forEach(0, 0, func(x, y int, t *Tile) error {
 		params := UpdateParams{
 			targeted: x == targetX && y == targetY,
 		}
@@ -126,7 +233,6 @@ func (b *Board) Size() (int, int) {
 func (b *Board) Draw(boardImage *ebiten.Image) {
 	boardImage.Fill(frameColor)
 
-	// TODO fix this; it's hoping you have a square
 	for j := 0; j < b.size; j++ {
 		for i := 0; i < b.size; i++ {
 			v := 0
@@ -142,7 +248,7 @@ func (b *Board) Draw(boardImage *ebiten.Image) {
 			boardImage.DrawImage(tileImage, op)
 		}
 	}
-	b.forEach(0, 0, b.topLeft, func(x, y int, t *Tile) error {
+	b.forEach(0, 0, func(x, y int, t *Tile) error {
 		t.Draw(x, y, boardImage)
 		return nil
 	})
