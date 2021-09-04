@@ -72,26 +72,26 @@ func NewTile(params *TileParams) *Tile {
 	return t
 }
 
-// TODO rename this
-func (t *Tile) add(other *Tile, armies int) {
+func (t *Tile) moveTo(dest *Tile, armies int) {
 	t.lock.Lock()
+	dest.lock.Lock()
 	defer t.lock.Unlock()
-	t.PlayerID = other.PlayerID
-	log.Debugf("adding %d armies to tile; current armies: %d\n", armies, t.Armies)
-	t.Armies += armies
+	defer dest.lock.Unlock()
+
+	armies = t.availableArmies(armies)
+
+	log.Debugf("adding %d armies to tile (%d,%d) from tile (%d,%d); current armies: %d\n", armies, dest.X, dest.Y, t.X, t.Y, t.Armies)
+
+	dest.PlayerID = t.PlayerID
+	dest.Armies += armies
+	t.Armies -= armies
 }
 
-func (t *Tile) take(armies int) int {
-	t.lock.Lock()
-	defer t.lock.Unlock()
-	if armies >= t.Armies {
-		available := t.Armies - 1
-		t.Armies = 1
-		return available
+func (t *Tile) availableArmies(wants int) int {
+	if wants >= t.Armies {
+		return t.Armies - 1
 	}
-
-	t.Armies -= armies
-	return armies
+	return wants
 }
 
 // Super simple risk rolling for now, returns values to take away from attacker and defender armies

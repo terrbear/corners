@@ -137,8 +137,7 @@ func (b *Board) runTransfer(t *Transfer) {
 		}
 
 		if dest.PlayerID == t.from.PlayerID || dest.Armies == 0 {
-			t.armies = t.from.take(t.armies)
-			dest.add(t.from, t.armies)
+			t.from.moveTo(dest, t.armies)
 			t.from = dest
 		} else {
 			log.Trace("grabbing low bar from armies")
