@@ -3,6 +3,7 @@ package rpc
 import (
 	"fmt"
 	"math"
+	"sync"
 	"time"
 )
 
@@ -12,6 +13,7 @@ type Board struct {
 	size     int
 	bluebase *Tile
 	redbase  *Tile
+	lock     sync.Mutex
 }
 
 // NewBoard generates a new Board with giving a size.
@@ -26,15 +28,37 @@ func NewBoard(size int) *Board {
 
 	bluebase := NewTile(&TileParams{generator: true, team: 1})
 	redbase := NewTile(&TileParams{generator: true, team: 2, x: size - 1, y: size - 1})
+
 	tiles[0][0] = bluebase
 	tiles[size-1][size-1] = redbase
+	// redbase.Armies = 20
 
-	return &Board{
+	tiles[0][size-1].generator = true
+	tiles[size-1][0].generator = true
+
+	b := &Board{
 		size:     size,
 		Tiles:    tiles,
 		redbase:  redbase,
 		bluebase: bluebase,
 	}
+
+	go func() {
+		t := time.NewTicker(time.Second)
+		for {
+			b.Tick()
+			<-t.C
+		}
+	}()
+
+	return b
+}
+
+func (b *Board) Start() {
+	b.forEach(0, 0, func(x, y int, tile *Tile) error {
+		tile.Start()
+		return nil
+	})
 }
 
 func (b *Board) forEach(x, y int, f func(int, int, *Tile) error) error {
@@ -91,12 +115,12 @@ func (b *Board) runTransfer(t *Transfer) {
 
 		dest := b.Tiles[targetX][targetY]
 
-		if dest.Team != 0 && dest.Team != t.from.Team {
+		if dest.Team != t.from.Team && dest.Armies > 0 {
 			fmt.Println("calling attack!")
 			t.from.attack(dest)
 		}
 
-		if dest.Team == 0 || dest.Team == t.from.Team || dest.Armies == 0 {
+		if dest.Team == t.from.Team || dest.Armies == 0 {
 			t.armies = t.from.take(t.armies)
 			dest.add(t.from, t.armies)
 			t.from = dest
@@ -114,8 +138,12 @@ func (b *Board) runTransfer(t *Transfer) {
 	}
 }
 
-func (b *Board) Transfer(source, dest *Tile) {
+func (b *Board) Transfer(team int, source, dest *Tile) {
 	if source == dest {
+		return
+	}
+
+	if source.Team != team {
 		return
 	}
 
@@ -138,23 +166,24 @@ func (b *Board) Transfer(source, dest *Tile) {
 
 // Update updates the board state.
 func (b *Board) Tick() error {
-	red, blue := 0, 0
+	b.lock.Lock()
+	defer b.lock.Unlock()
 
+	resources := make(map[int]int)
 	b.bluebase.resources = 0
 	b.redbase.resources = 0
 
 	b.forEach(0, 0, func(x, y int, t *Tile) error {
-		if t.Team == 1 {
-			blue += t.resources
-		} else if t.Team == 2 {
-			red += t.resources
-		}
+		resources[t.Team]++
 		return nil
 	})
 
-	// TODO lock this
-	b.bluebase.resources = blue
-	b.redbase.resources = red
+	b.forEach(0, 0, func(x, y int, t *Tile) error {
+		if t.generator && t.Team != 0 {
+			t.resources = resources[t.Team]
+		}
+		return nil
+	})
 
 	return nil
 }

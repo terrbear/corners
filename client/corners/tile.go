@@ -61,9 +61,6 @@ type Tile struct {
 	x      int
 	y      int
 
-	selected bool
-	targeted bool
-
 	tile *rpc.Tile
 }
 
@@ -144,14 +141,16 @@ func (t *Tile) bgColor(params *TileDrawParams) color.Color {
 		return color.RGBA{0x00, 0x88, 0x00, 0xff}
 	}
 
-	switch params.team {
-	case 1:
-		return color.RGBA{0x00, 0x00, 0x88, 0xff}
-	case 2:
-		return color.RGBA{0x88, 0x00, 0x00, 0xff}
-	default:
-		return color.NRGBA{0xee, 0xe4, 0xda, 0x59}
+	if t.tile != nil {
+		switch t.tile.Team {
+		case 1:
+			return color.RGBA{0x00, 0x00, 0x88, 0xff}
+		case 2:
+			return color.RGBA{0x88, 0x00, 0x00, 0xff}
+		}
 	}
+
+	return color.NRGBA{0xee, 0xe4, 0xda, 0x59}
 }
 
 type TileDrawParams struct {

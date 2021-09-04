@@ -14,9 +14,10 @@ type Tile struct {
 	Team      int `json:"team"`
 	X         int `json:"x"`
 	Y         int `json:"y"`
-	resources int `json:"resources"`
+	resources int
 	generator bool
 	lock      sync.Mutex
+	start     sync.Once
 }
 
 type TileParams struct {
@@ -28,10 +29,18 @@ type TileParams struct {
 }
 
 func (t *Tile) generate() {
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(2 * time.Second)
 	for {
-		t.Armies += (t.resources / 3) + 3
+		t.Armies += (t.resources / 6) + 3
 		<-ticker.C
+	}
+}
+
+func (t *Tile) Start() {
+	if t.generator {
+		t.start.Do(func() {
+			go t.generate()
+		})
 	}
 }
 
@@ -47,8 +56,7 @@ func NewTile(params *TileParams) *Tile {
 	}
 	if t.generator {
 		// to test early games faster
-		t.Armies = 20
-		go t.generate()
+		t.Armies = 10
 	}
 	return t
 }
@@ -110,6 +118,16 @@ func roll(attackers, defenders int) (int, int) {
 }
 
 func (t *Tile) attack(defender *Tile) {
+	t.lock.Lock()
+	defender.lock.Lock()
+
+	defer t.lock.Unlock()
+	defer defender.lock.Unlock()
+
+	if t.Armies <= 1 {
+		return
+	}
+
 	defenders := 1
 	if defender.Armies > 1 {
 		defenders = 2
@@ -126,5 +144,11 @@ func (t *Tile) attack(defender *Tile) {
 	t.Armies -= alosses
 	defender.Armies -= dlosses
 
-	// TODO bottom that out at 0
+	if defender.Armies < 0 {
+		defender.Armies = 0
+	}
+
+	if t.Armies < 0 {
+		t.Armies = 1
+	}
 }

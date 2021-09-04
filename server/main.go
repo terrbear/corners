@@ -19,9 +19,13 @@ import (
 	"terrbear.io/corners/internal/rpc"
 )
 
-var addr = flag.String("addr", "localhost:8080", "http service address")
+var addr = flag.String("addr", ":8080", "http service address")
 var board *rpc.Board
 var lock sync.Mutex
+
+var p1 = false
+var p2 = false
+var ready = make(chan bool)
 
 var upgrader = websocket.Upgrader{} // use default options
 
@@ -30,7 +34,7 @@ type wsMessage struct {
 	Message []byte
 }
 
-func processCommand(message []byte) {
+func processCommand(player int, message []byte) {
 	lock.Lock()
 	defer lock.Unlock()
 	var command rpc.Command
@@ -41,6 +45,7 @@ func processCommand(message []byte) {
 	}
 
 	board.Transfer(
+		player,
 		board.Tiles[command.SelectedX][command.SelectedY],
 		board.Tiles[command.TargetX][command.TargetY])
 }
@@ -54,7 +59,7 @@ func boardToJSON() []byte {
 	return js
 }
 
-func play(w http.ResponseWriter, r *http.Request) {
+func play1(w http.ResponseWriter, r *http.Request) {
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Print("upgrade:", err)
@@ -62,23 +67,76 @@ func play(w http.ResponseWriter, r *http.Request) {
 	}
 	defer c.Close()
 	commands := make(chan wsMessage)
+	p1 = true
+
+	<-ready
+
+	done := make(chan bool)
+
 	go func() {
 		for {
 			fmt.Println("waiting to read msg")
 			mt, message, err := c.ReadMessage()
 			if err != nil {
 				log.Println("read:", err)
+				close(done)
 				continue
 			}
 			commands <- wsMessage{mt, message}
 		}
 	}()
-	t := time.NewTicker(time.Second)
+	t := time.NewTicker(10 * time.Millisecond)
 	for {
 		select {
 		case wsMsg := <-commands:
-			processCommand(wsMsg.Message)
+			processCommand(1, wsMsg.Message)
 			log.Printf("recv: %s", wsMsg.Message)
+		case <-done:
+			return
+		case <-t.C:
+			err = c.WriteMessage(1, boardToJSON())
+			if err != nil {
+				log.Println("write:", err)
+			}
+		}
+	}
+}
+
+func play2(w http.ResponseWriter, r *http.Request) {
+	c, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Print("upgrade:", err)
+		return
+	}
+	defer c.Close()
+	commands := make(chan wsMessage)
+	p2 = true
+
+	<-ready
+
+	done := make(chan bool)
+
+	go func() {
+		for {
+			fmt.Println("waiting to read msg")
+			mt, message, err := c.ReadMessage()
+			if err != nil {
+				log.Println("read:", err)
+				close(done)
+				break
+			}
+			commands <- wsMessage{mt, message}
+		}
+	}()
+	t := time.NewTicker(30 * time.Millisecond)
+
+	for {
+		select {
+		case wsMsg := <-commands:
+			processCommand(2, wsMsg.Message)
+			log.Printf("recv: %s", wsMsg.Message)
+		case <-done:
+			return
 		case <-t.C:
 			err = c.WriteMessage(1, boardToJSON())
 			if err != nil {
@@ -89,10 +147,21 @@ func play(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	board = rpc.NewBoard(8)
+	board = rpc.NewBoard(16)
+
+	go func() {
+		for {
+			if p1 && p2 {
+				board.Start()
+				close(ready)
+				return
+			}
+		}
+	}()
 
 	flag.Parse()
 	log.SetFlags(0)
-	http.HandleFunc("/play", play)
+	http.HandleFunc("/play/1", play1)
+	http.HandleFunc("/play/2", play2)
 	log.Fatal(http.ListenAndServe(*addr, nil))
 }

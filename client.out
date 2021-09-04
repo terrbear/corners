@@ -1,0 +1,50 @@
+left mouse click:  100 103
+selected: 0, 0
+right mouse click:  199 682
+target: 1, 7
+sending message:  {"SelectedX":0,"SelectedY":0,"TargetX":1,"TargetY":7}
+right mouse click:  271 716
+target: 2, 7
+sending message:  {"SelectedX":0,"SelectedY":0,"TargetX":2,"TargetY":7}
+right mouse click:  375 715
+target: 3, 7
+sending message:  {"SelectedX":0,"SelectedY":0,"TargetX":3,"TargetY":7}
+right mouse click:  705 108
+target: 7, 0
+sending message:  {"SelectedX":0,"SelectedY":0,"TargetX":7,"TargetY":0}
+right mouse click:  704 114
+target: 7, 0
+sending message:  {"SelectedX":0,"SelectedY":0,"TargetX":7,"TargetY":0}
+right mouse click:  702 115
+target: 7, 0
+sending message:  {"SelectedX":0,"SelectedY":0,"TargetX":7,"TargetY":0}
+right mouse click:  448 625
+target: 4, 6
+sending message:  {"SelectedX":0,"SelectedY":0,"TargetX":4,"TargetY":6}
+right mouse click:  101 603
+target: 0, 6
+sending message:  {"SelectedX":0,"SelectedY":0,"TargetX":0,"TargetY":6}
+right mouse click:  698 118
+target: 7, 0
+sending message:  {"SelectedX":0,"SelectedY":0,"TargetX":7,"TargetY":0}
+left mouse click:  201 695
+selected: 1, 7
+right mouse click:  490 693
+target: 5, 7
+sending message:  {"SelectedX":1,"SelectedY":7,"TargetX":5,"TargetY":7}
+right mouse click:  32 534
+left mouse click:  117 712
+selected: 0, 7
+left mouse click:  117 720
+selected: 0, 7
+right mouse click:  227 9
+right mouse click:  214 24
+right mouse click:  106 687
+target: 0, 7
+sending message:  {"SelectedX":0,"SelectedY":7,"TargetX":0,"TargetY":7}
+left mouse click:  106 687
+selected: 0, 7
+right mouse click:  100 687
+target: 0, 7
+sending message:  {"SelectedX":0,"SelectedY":7,"TargetX":0,"TargetY":7}
+left mouse click:  166 14

@@ -24,13 +24,14 @@ type Board struct {
 	offset   image.Point
 	bluebase *Tile
 	redbase  *Tile
+	team     int
 
 	command chan rpc.Command
 	board   rpc.Board
 }
 
-func (b *Board) startClient() {
-	u := url.URL{Scheme: "ws", Host: "localhost:8080", Path: "/play"}
+func (b *Board) runClient() {
+	u := url.URL{Scheme: "ws", Host: "tannis.local:8080", Path: fmt.Sprintf("/play/%d", b.team)}
 	log.Printf("connecting to %s", u.String())
 
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
@@ -39,11 +40,19 @@ func (b *Board) startClient() {
 	}
 	defer c.Close()
 
+	done := make(chan bool)
+
 	go func() {
+		errCount := 0
 		for {
 			_, message, err := c.ReadMessage()
 			if err != nil {
 				log.Println("read:", err)
+				errCount++
+				if errCount > 10 {
+					close(done)
+					return
+				}
 				continue
 			}
 
@@ -59,23 +68,33 @@ func (b *Board) startClient() {
 	}()
 
 	for {
-		cmd := <-b.command
-		msg, err := json.Marshal(cmd)
-		if err != nil {
-			log.Println("couldn't marshal command: ", err)
-			continue
-		}
-		fmt.Println("sending message: ", string(msg))
-		err = c.WriteMessage(websocket.TextMessage, msg)
-		if err != nil {
-			log.Println("couldn't write command: ", err)
-			continue
+		select {
+		case cmd := <-b.command:
+			msg, err := json.Marshal(cmd)
+			if err != nil {
+				log.Println("couldn't marshal command: ", err)
+				continue
+			}
+			fmt.Println("sending message: ", string(msg))
+			err = c.WriteMessage(websocket.TextMessage, msg)
+			if err != nil {
+				log.Println("couldn't write command: ", err)
+				continue
+			}
+		case <-done:
+			return
 		}
 	}
 }
 
+func (b *Board) startClient() {
+	for {
+		b.runClient()
+	}
+}
+
 // NewBoard generates a new Board with giving a size.
-func NewBoard(size int) *Board {
+func NewBoard(size int, player1 bool) *Board {
 	tiles := make([][]*Tile, size)
 	for x := range tiles {
 		tiles[x] = make([]*Tile, size)
@@ -95,6 +114,12 @@ func NewBoard(size int) *Board {
 		tiles:    tiles,
 		redbase:  redbase,
 		bluebase: bluebase,
+	}
+
+	if player1 {
+		b.team = 1
+	} else {
+		b.team = 2
 	}
 
 	go b.startClient()

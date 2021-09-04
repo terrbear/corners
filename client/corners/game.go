@@ -13,24 +13,26 @@ func init() {
 }
 
 const (
-	ScreenWidth  = 800
-	ScreenHeight = 800
-	boardSize    = 8
+	ScreenWidth  = 1600
+	ScreenHeight = 1600
+	boardSize    = 16
 )
 
 // Game represents a game state.
 type Game struct {
 	input      *Input
 	board      *Board
+	player1    bool
 	boardImage *ebiten.Image
 }
 
 // NewGame generates a new Game object.
-func NewGame() (*Game, error) {
+func NewGame(p1 bool) (*Game, error) {
 	g := &Game{
-		input: NewInput(),
+		player1: p1,
+		input:   NewInput(),
 	}
-	g.board = NewBoard(boardSize)
+	g.board = NewBoard(boardSize, p1)
 	return g, nil
 }
 
