@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"terrbear.io/corners/corners"
+	"terrbear.io/corners/client/corners"
 )
 
 func main() {

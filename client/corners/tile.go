@@ -1,18 +1,14 @@
 package corners
 
 import (
-	"fmt"
 	"image/color"
 	"log"
 	"math"
-	"math/rand"
-	"sort"
 	"strconv"
-	"sync"
-	"time"
 
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
+	"terrbear.io/corners/internal/rpc"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/examples/resources/fonts"
@@ -60,16 +56,15 @@ func init() {
 
 // Tile represents a tile information including TileData and animation states.
 type Tile struct {
-	armies    int
-	team      int
-	generator bool
-	x         int
-	y         int
-	lock      sync.Mutex
-	resources int
+	armies int
+	team   int
+	x      int
+	y      int
 
 	selected bool
 	targeted bool
+
+	tile *rpc.Tile
 }
 
 type TileParams struct {
@@ -80,28 +75,13 @@ type TileParams struct {
 	generator bool
 }
 
-func (t *Tile) generate() {
-	ticker := time.NewTicker(5 * time.Second)
-	for {
-		t.armies += (t.resources / 3) + 3
-		<-ticker.C
-	}
-}
-
 // NewTile creates a new Tile object.
 func NewTile(params *TileParams) *Tile {
 	t := &Tile{
-		resources: params.resources,
-		x:         params.x,
-		y:         params.y,
-		team:      params.team,
-		armies:    0,
-		generator: params.generator,
-	}
-	if t.generator {
-		// to test early games faster
-		t.armies = 20
-		go t.generate()
+		x:      params.x,
+		y:      params.y,
+		team:   params.team,
+		armies: 0,
 	}
 	return t
 }
@@ -113,37 +93,6 @@ type UpdateParams struct {
 
 func (t *Tile) adjacent(other *Tile) bool {
 	return math.Abs(float64(t.x-other.x))+math.Abs(float64(t.y-other.y)) == 1
-}
-
-// TODO rename this
-func (t *Tile) add(other *Tile, armies int) {
-	t.lock.Lock()
-	defer t.lock.Unlock()
-	t.team = other.team
-	fmt.Printf("adding %d armies to tile; current armies: %d\n", armies, t.armies)
-	t.armies += armies
-}
-
-func (t *Tile) take(armies int) int {
-	t.lock.Lock()
-	defer t.lock.Unlock()
-	if armies >= t.armies {
-		available := t.armies - 1
-		t.armies = 1
-		return available
-	}
-
-	t.armies -= armies
-	return armies
-}
-
-// Update updates the tile's animation states.
-func (t *Tile) Update(params *UpdateParams) error {
-	if params.selected != nil {
-		t.selected = *params.selected
-	}
-	t.targeted = params.targeted
-	return nil
 }
 
 // TODO rules that you can only select your own team squares
@@ -188,62 +137,14 @@ func init() {
 	tileImage.Fill(color.White)
 }
 
-// Super simple risk rolling for now, returns values to take away from attacker and defender armies
-func roll(attackers, defenders int) (int, int) {
-	attacks := make([]int, attackers)
-	defenses := make([]int, defenders)
-
-	for i := 0; i < len(attacks); i++ {
-		attacks[i] = rand.Intn(6) + 1
-	}
-	for i := 0; i < len(defenses); i++ {
-		defenses[i] = rand.Intn(6) + 1
-	}
-
-	sort.SliceStable(attacks, func(i, j int) bool { return attacks[j] < attacks[i] })
-	sort.SliceStable(defenses, func(i, j int) bool { return attacks[j] < attacks[i] })
-
-	alosses, dlosses := 0, 0
-
-	for i := 0; i < len(defenses); i++ {
-		if defenses[i] >= attacks[i] {
-			alosses++
-		} else {
-			dlosses++
-		}
-	}
-
-	return alosses, dlosses
-}
-
-func (t *Tile) attack(defender *Tile) {
-	defenders := 1
-	if defender.armies > 1 {
-		defenders = 2
-	}
-
-	attackers := 2
-	if t.armies > 2 {
-		attackers = 3
-	}
-
-	alosses, dlosses := roll(attackers, defenders)
-
-	fmt.Printf("attacker loses %d armies, defender loses %d armies\n", alosses, dlosses)
-	t.armies -= alosses
-	defender.armies -= dlosses
-
-	// TODO bottom that out at 0
-}
-
-func (t *Tile) bgColor() color.Color {
-	if t.selected {
+func (t *Tile) bgColor(params *TileDrawParams) color.Color {
+	if params.selected {
 		return color.RGBA{0x00, 0x00, 0x00, 0xff}
-	} else if t.targeted {
+	} else if params.targeted {
 		return color.RGBA{0x00, 0x88, 0x00, 0xff}
 	}
 
-	switch t.team {
+	switch params.team {
 	case 1:
 		return color.RGBA{0x00, 0x00, 0x88, 0xff}
 	case 2:
@@ -253,17 +154,26 @@ func (t *Tile) bgColor() color.Color {
 	}
 }
 
+type TileDrawParams struct {
+	selected bool
+	targeted bool
+	team     int
+}
+
 // Draw draws the current tile to the given boardImage.
-func (t *Tile) Draw(x, y int, boardImage *ebiten.Image) {
+func (t *Tile) Draw(x, y int, boardImage *ebiten.Image, params *TileDrawParams) {
 	i, j := x, y
 
 	op := &ebiten.DrawImageOptions{}
 	x = i*tileSize + (i+1)*tileMargin
 	y = j*tileSize + (j+1)*tileMargin
 	op.GeoM.Translate(float64(x), float64(y))
-	r, g, b, a := colorToScale(t.bgColor())
+	r, g, b, a := colorToScale(t.bgColor(params))
 	op.ColorM.Scale(r, g, b, a)
-	v := t.armies
+	v := 0
+	if t.tile != nil {
+		v = t.tile.Armies
+	}
 	boardImage.DrawImage(tileImage, op)
 	str := strconv.Itoa(v)
 
