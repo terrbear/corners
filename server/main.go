@@ -20,6 +20,11 @@ import (
 	"terrbear.io/corners/server/corners"
 )
 
+const (
+	maxPlayers = 4
+	minPlayers = 1
+)
+
 var lock sync.Mutex
 
 var ready = make(chan bool)
@@ -44,7 +49,7 @@ func (gc *gameChannel) processCommand(player rpc.PlayerID, message []byte) {
 		gc.board.Tiles[command.TargetX][command.TargetY])
 }
 
-func (gc *gameChannel) boardToJSON() []byte {
+func (gc *gameChannel) serializedBoard() []byte {
 	board := gc.board.ToRPCBoard()
 	b, err := rpc.SerializeBoard(board)
 	if err != nil {
@@ -57,38 +62,57 @@ func (gc *gameChannel) boardToJSON() []byte {
 var games = make(map[rpc.PlayerID]*gameChannel)
 
 type gameChannel struct {
-	players []rpc.PlayerID
+	players map[rpc.PlayerID]time.Time
 	ready   chan bool
+	pings   chan rpc.PlayerID
 	board   *corners.Board
 }
 
 func NewGameChannel() *gameChannel {
-	return &gameChannel{
-		players: make([]rpc.PlayerID, 0),
+	gc := gameChannel{
+		players: make(map[rpc.PlayerID]time.Time),
 		ready:   make(chan bool),
+		pings:   make(chan rpc.PlayerID, maxPlayers),
+	}
+
+	go gc.loop()
+
+	return &gc
+}
+
+func (gc *gameChannel) loop() {
+	for {
+		select {
+		case p := <-gc.pings:
+			log.WithField("playerID", p).Debug("got ping")
+			gc.players[p] = time.Now().Add(30 * time.Second)
+		}
 	}
 }
 
 var players = make(chan int)
 
+func (gc *gameChannel) ping(p rpc.PlayerID) {
+	gc.pings <- p
+}
+
 // Obviously this is dirty; only call this if you're holding the lock
 func startGame() {
-	for _, p := range pendingGame.players {
+	for p := range pendingGame.players {
 		games[p] = pendingGame
 	}
 	log.Info("starting game!")
-	pendingGame.board = corners.NewBoard(pendingGame.players, 16)
+	players := make([]rpc.PlayerID, 0, len(pendingGame.players))
+	for p := range pendingGame.players {
+		players = append(players, p)
+	}
+	pendingGame.board = corners.NewBoard(players, 16)
 	pendingGame.board.Start()
 	close(pendingGame.ready)
 	pendingGame = nil
 }
 
 var pendingGame *gameChannel
-
-const (
-	maxPlayers = 4
-	minPlayers = 1
-)
 
 func timer() {
 	ticker := time.NewTicker(env.LobbyTimeout())
@@ -122,7 +146,7 @@ func addPlayer(p rpc.PlayerID) *gameChannel {
 
 	log.WithField("playerID", p).Debug("adding player")
 	if len(pendingGame.players) < maxPlayers {
-		pendingGame.players = append(pendingGame.players, p)
+		pendingGame.players[p] = time.Now()
 	}
 
 	return pendingGame
@@ -150,6 +174,11 @@ func play(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("player added to game with id %s; waiting for game to start\n", id)
 	<-game.ready
 
+	c.SetPingHandler(func(appData string) error {
+		game.ping(id)
+		return nil
+	})
+
 	go func() {
 		for {
 			mt, message, err := c.ReadMessage()
@@ -167,11 +196,11 @@ func play(w http.ResponseWriter, r *http.Request) {
 		select {
 		case wsMsg := <-commands:
 			game.processCommand(id, wsMsg.Message)
-			log.Printf("recv: %s", wsMsg.Message)
+			log.Tracef("recv: %s", wsMsg.Message)
 		case <-done:
 			return
 		case <-t.C:
-			err = c.WriteMessage(1, game.boardToJSON())
+			err = c.WriteMessage(websocket.BinaryMessage, game.serializedBoard())
 			if err != nil {
 				log.Println("write:", err)
 			}

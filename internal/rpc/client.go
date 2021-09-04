@@ -3,6 +3,7 @@ package rpc
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -40,7 +41,7 @@ func (r *Client) SendCommand(command Command) {
 func (r *Client) listen(ctx context.Context, c *websocket.Conn) error {
 	errCount := 0
 	for {
-		_, message, err := c.ReadMessage()
+		mt, message, err := c.ReadMessage()
 		if err != nil {
 			log.Println("read:", err)
 			errCount++
@@ -49,19 +50,22 @@ func (r *Client) listen(ctx context.Context, c *websocket.Conn) error {
 			}
 			continue
 		}
-
-		board, err := DeserializeBoard(message)
-		if err != nil {
-			log.WithError(err).Error("error unmarshaling board")
-			continue
+		if mt == websocket.BinaryMessage || mt == websocket.TextMessage {
+			board, err := DeserializeBoard(message)
+			if err != nil {
+				log.WithError(err).Error("error unmarshaling board")
+				continue
+			}
+			log.Trace("board: ", board)
+			r.boardUpdates <- *board
 		}
-		log.Trace("board: ", board)
-		r.boardUpdates <- *board
 	}
 }
 
 func (r *Client) talk(ctx context.Context, c *websocket.Conn) error {
 	r.log.Debug("waiting to talk to server...")
+	t := time.NewTicker(5 * time.Second)
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -77,8 +81,13 @@ func (r *Client) talk(ctx context.Context, c *websocket.Conn) error {
 			log.Trace("sending message: ", string(msg))
 			err = c.WriteMessage(websocket.BinaryMessage, msg)
 			if err != nil {
-				log.Println("couldn't write command: ", err)
-				continue
+				log.WithError(err).Error("couldn't write command")
+			}
+		case <-t.C:
+			log.Trace("sending ping")
+			err := c.WriteMessage(websocket.PingMessage, []byte{})
+			if err != nil {
+				log.WithError(err).Error("couldn't send ping")
 			}
 		}
 	}
