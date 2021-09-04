@@ -16,6 +16,9 @@ publish:
 lint:
 	golangci-lint run --tests=false ./...
 
+run_local_server:
+	LOG_LEVEL=debug LOBBY_TIMEOUT=0 go run server/main.go
+
 run: build
 	bin/server &
 	bin/corners &

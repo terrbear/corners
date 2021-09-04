@@ -72,7 +72,7 @@ func NewTile(params *TileParams) *Tile {
 	return t
 }
 
-func (t *Tile) moveTo(dest *Tile, armies int) {
+func (t *Tile) moveTo(dest *Tile, armies int) int {
 	t.lock.Lock()
 	dest.lock.Lock()
 	defer t.lock.Unlock()
@@ -85,6 +85,8 @@ func (t *Tile) moveTo(dest *Tile, armies int) {
 	dest.PlayerID = t.PlayerID
 	dest.Armies += armies
 	t.Armies -= armies
+
+	return armies
 }
 
 func (t *Tile) availableArmies(wants int) int {

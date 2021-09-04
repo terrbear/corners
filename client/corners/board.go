@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
-	"github.com/gorilla/websocket"
 	"github.com/hajimehoshi/ebiten/v2"
 	log "github.com/sirupsen/logrus"
 	"terrbear.io/corners/internal/rpc"
@@ -24,69 +23,19 @@ type Board struct {
 	offset   image.Point
 	playerID rpc.PlayerID
 	init     sync.Once
+	lock     sync.Mutex
 
-	command chan rpc.Command
-	board   rpc.Board
+	client       *rpc.Client
+	boardUpdates chan rpc.Board
+	board        rpc.Board
 }
 
-func (b *Board) runClient() {
-	u := rpc.ServerURL(b.playerID)
-	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
-	if err != nil {
-		log.Fatal("dial:", err)
-	}
-	defer c.Close()
-
-	done := make(chan bool)
-
-	go func() {
-		errCount := 0
-		for {
-			_, message, err := c.ReadMessage()
-			if err != nil {
-				log.Println("read:", err)
-				errCount++
-				if errCount > 10 {
-					close(done)
-					return
-				}
-				continue
-			}
-
-			board, err := rpc.DeserializeBoard(message)
-			if err != nil {
-				log.WithError(err).Error("error unmarshaling board")
-				continue
-			}
-			log.Trace("board: ", board)
-			b.initBoard(*board)
-			b.board = *board
-		}
-	}()
-
-	for {
-		select {
-		case cmd := <-b.command:
-			msg, err := rpc.SerializeCommand(&cmd)
-			if err != nil {
-				log.Println("couldn't marshal command: ", err)
-				continue
-			}
-			log.Trace("sending message: ", string(msg))
-			err = c.WriteMessage(websocket.BinaryMessage, msg)
-			if err != nil {
-				log.Println("couldn't write command: ", err)
-				continue
-			}
-		case <-done:
-			return
-		}
-	}
-}
-
-func (b *Board) startClient() {
-	for {
-		b.runClient()
+func (b *Board) processBoardUpdates() {
+	for board := range b.boardUpdates {
+		b.lock.Lock()
+		b.initBoard(board)
+		b.board = board
+		b.lock.Unlock()
 	}
 }
 
@@ -108,11 +57,13 @@ func (b *Board) initBoard(board rpc.Board) {
 
 func NewBoard() *Board {
 	b := &Board{
-		command:  make(chan rpc.Command),
-		playerID: rpc.PlayerID(uuid.New().String()),
+		playerID:     rpc.PlayerID(uuid.New().String()),
+		boardUpdates: make(chan rpc.Board),
 	}
 
-	go b.startClient()
+	go b.processBoardUpdates()
+
+	b.client = rpc.NewClient(b.playerID, b.boardUpdates)
 
 	return b
 }
@@ -136,7 +87,7 @@ func (b *Board) forEach(x, y int, f func(int, int, *Tile) error) error {
 	}
 	for col := range b.tiles {
 		for row := range b.tiles[col] {
-			b.tiles[row][col].tile = &b.board.Tiles[row][col]
+			b.tiles[row][col].tile = b.board.Tiles[row][col]
 			err := f(col, row, b.tiles[col][row])
 			if err != nil {
 				return err
@@ -148,15 +99,14 @@ func (b *Board) forEach(x, y int, f func(int, int, *Tile) error) error {
 }
 
 func (b *Board) transfer(sourceX, sourceY, targetX, targetY int) {
-	b.command <- rpc.Command{
+	b.client.SendCommand(rpc.Command{
 		SelectedX: sourceX,
 		SelectedY: sourceY,
 		TargetX:   targetX,
 		TargetY:   targetY,
-	}
+	})
 }
 
-// Update updates the board state.
 func (b *Board) Update(input *Input) error {
 	clickedX, clickedY := b.translate(input.LeftMouse())
 	targetX, targetY := b.translate(input.RightMouse())
@@ -197,8 +147,6 @@ func (b *Board) Draw(boardImage *ebiten.Image) {
 			if b.selectedX == i && b.selectedY == j {
 				x *= 2
 				y *= 2
-				//x -= tileMargin
-				//y -= tileMargin
 				cr, cg, cb, ca = colorToScale(color.RGBA{0x0, 0x0, 0x0, 0x0})
 			}
 			op.GeoM.Translate(float64(x), float64(y))

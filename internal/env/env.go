@@ -3,6 +3,7 @@ package env
 import (
 	"os"
 	"strconv"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -15,18 +16,23 @@ func Port() int {
 	return port
 }
 
-func LobbyTimeout() int {
-	return lobbyTimeout
+func LobbyTimeout() time.Duration {
+	if lobbyTimeout <= 0 {
+		return time.Millisecond
+	}
+
+	return time.Duration(lobbyTimeout) * time.Second
 }
 
 func parseEnvInt(name string, defaultValue int) int {
-	p, ok := os.LookupEnv("PORT")
+	val, ok := os.LookupEnv(name)
 	if ok {
-		pn, err := strconv.Atoi(p)
+		log.Debug("got env var ", name, "=", val)
+		num, err := strconv.Atoi(val)
 		if err != nil {
-			return pn
-		} else {
 			return defaultValue
+		} else {
+			return num
 		}
 	}
 
@@ -34,9 +40,6 @@ func parseEnvInt(name string, defaultValue int) int {
 }
 
 func init() {
-	port = parseEnvInt("PORT", 8080)
-	lobbyTimeout = parseEnvInt("LOBBY_TIMEOUT", 10)
-
 	ll, err := log.ParseLevel(os.Getenv("LOG_LEVEL"))
 	if err == nil {
 		logLevel = ll
@@ -45,4 +48,7 @@ func init() {
 	}
 	log.SetLevel(logLevel)
 	log.SetReportCaller(true)
+
+	port = parseEnvInt("PORT", 8080)
+	lobbyTimeout = parseEnvInt("LOBBY_TIMEOUT", 10)
 }

@@ -91,7 +91,9 @@ const (
 )
 
 func timer() {
-	ticker := time.NewTicker(time.Duration(env.LobbyTimeout()) * time.Second)
+	ticker := time.NewTicker(env.LobbyTimeout())
+
+	log.Info("lobby timeout: ", env.LobbyTimeout())
 
 	for {
 		lock.Lock()

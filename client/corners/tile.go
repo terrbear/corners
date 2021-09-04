@@ -58,7 +58,7 @@ type Tile struct {
 	x int
 	y int
 
-	tile *rpc.Tile
+	tile rpc.Tile
 }
 
 type TileParams struct {
@@ -94,30 +94,26 @@ func (t *Tile) bgColor(params *TileDrawParams) color.Color {
 		return color.RGBA{0x00, 0xaf, 0x00, 0x33}
 	}
 
-	if t.tile != nil {
-		alpha := uint8(0x33)
+	alpha := uint8(0x33)
 
-		if t.tile.Armies > 200 {
-			alpha = 0xff
-		} else if t.tile.Armies > 100 {
-			alpha = 0xaa
-		} else if t.tile.Armies > 50 {
-			alpha = 0x88
-		} else if t.tile.Armies > 10 {
-			alpha = 0x66
-		}
-
-		switch t.tile.PlayerID {
-		case params.boardPlayerID:
-			return color.RGBA{0x00, 0x00, 0x88, alpha} // blue
-		default:
-			c := getPlayerColor(t.tile.PlayerID)
-			c.A = alpha
-			return c
-		}
+	if t.tile.Armies > 200 {
+		alpha = 0xff
+	} else if t.tile.Armies > 100 {
+		alpha = 0xaa
+	} else if t.tile.Armies > 50 {
+		alpha = 0x88
+	} else if t.tile.Armies > 10 {
+		alpha = 0x66
 	}
 
-	return color.NRGBA{0xee, 0xe4, 0xda, 0x59}
+	switch t.tile.PlayerID {
+	case params.boardPlayerID:
+		return color.RGBA{0x00, 0x00, 0x88, alpha} // blue
+	default:
+		c := getPlayerColor(t.tile.PlayerID)
+		c.A = alpha
+		return c
+	}
 }
 
 type TileDrawParams struct {
@@ -145,20 +141,14 @@ func (t *Tile) Draw(xoffset, yoffset int, boardImage *ebiten.Image, params *Tile
 	op.GeoM.Translate(float64(x), float64(y))
 	r, g, b, a := colorToScale(t.bgColor(params))
 	op.ColorM.Scale(r, g, b, a)
-	v := 0
-	if t.tile != nil {
-		v = t.tile.Armies
-	}
 	boardImage.DrawImage(tileImage, op)
-	str := strconv.Itoa(v)
+	str := strconv.Itoa(t.tile.Armies)
 
-	if t.tile != nil {
-		if t.tile.PlayerID == rpc.NeutralPlayer && t.tile.Armies == 0 {
-			return
-		}
-		if t.tile.PlayerID != rpc.NeutralPlayer && t.tile.PlayerID != params.boardPlayerID {
-			return
-		}
+	if t.tile.PlayerID == rpc.NeutralPlayer && t.tile.Armies == 0 {
+		return
+	}
+	if t.tile.PlayerID != rpc.NeutralPlayer && t.tile.PlayerID != params.boardPlayerID {
+		return
 	}
 
 	f := fontBig
@@ -181,7 +171,7 @@ func (t *Tile) Draw(xoffset, yoffset int, boardImage *ebiten.Image, params *Tile
 	y = y + float64((tileSize-h)/2+h)
 
 	c := color.RGBA{0xff, 0xff, 0xff, 0xff}
-	if t.tile != nil && t.tile.PlayerID == rpc.NeutralPlayer {
+	if t.tile.PlayerID == rpc.NeutralPlayer {
 		c = color.RGBA{0x00, 0x00, 0x00, 0xff}
 	}
 	text.Draw(boardImage, str, f, int(x), int(y), c)
