@@ -14,25 +14,31 @@ type Board struct {
 	lock  sync.Mutex
 }
 
+type PlayerID string
+
+const NeutralPlayer PlayerID = "neutral"
+
 // NewBoard generates a new Board with giving a size.
-func NewBoard(size int) *Board {
+func NewBoard(playerIDs []PlayerID, size int) *Board {
 	tiles := make([][]*Tile, size)
 	for x := range tiles {
 		tiles[x] = make([]*Tile, size)
 		for y := range tiles[x] {
-			tiles[x][y] = NewTile(&TileParams{x: x, y: y, resources: 1})
+			tiles[x][y] = NewTile(&TileParams{x: x, y: y, resources: 1, playerID: NeutralPlayer})
 		}
 	}
 
-	bluebase := NewTile(&TileParams{generator: true, team: 1})
-	redbase := NewTile(&TileParams{generator: true, team: 2, x: size - 1, y: size - 1})
+	positions := [][]int{{0, 0}, {size - 1, size - 1}, {0, size - 1}, {size - 1, 0}}
 
-	tiles[0][0] = bluebase
-	tiles[size-1][size-1] = redbase
-	// redbase.Armies = 20
+	for i := range positions {
+		position := positions[i]
+		playerID := NeutralPlayer
+		if len(playerIDs) > i {
+			playerID = playerIDs[i]
+		}
 
-	tiles[0][size-1].generator = true
-	tiles[size-1][0].generator = true
+		tiles[position[0]][position[1]] = NewTile(&TileParams{playerID: playerID, generator: true, x: position[0], y: position[1]})
+	}
 
 	b := &Board{
 		size:  size,
@@ -110,12 +116,12 @@ func (b *Board) runTransfer(t *Transfer) {
 
 		dest := b.Tiles[targetX][targetY]
 
-		if dest.Team != t.from.Team && dest.Armies > 0 {
+		if dest.PlayerID != t.from.PlayerID && dest.Armies > 0 {
 			fmt.Println("calling attack!")
 			t.from.attack(dest)
 		}
 
-		if dest.Team == t.from.Team || dest.Armies == 0 {
+		if dest.PlayerID == t.from.PlayerID || dest.Armies == 0 {
 			t.armies = t.from.take(t.armies)
 			dest.add(t.from, t.armies)
 			t.from = dest
@@ -133,12 +139,15 @@ func (b *Board) runTransfer(t *Transfer) {
 	}
 }
 
-func (b *Board) Transfer(team int, source, dest *Tile) {
+func (b *Board) Transfer(playerID PlayerID, source, dest *Tile) {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+
 	if source == dest {
 		return
 	}
 
-	if source.Team != team {
+	if source.PlayerID != playerID {
 		return
 	}
 
@@ -164,16 +173,16 @@ func (b *Board) Tick() error {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
-	resources := make(map[int]int)
+	resources := make(map[PlayerID]int)
 
 	b.forEach(0, 0, func(x, y int, t *Tile) error {
-		resources[t.Team]++
+		resources[t.PlayerID]++
 		return nil
 	})
 
 	b.forEach(0, 0, func(x, y int, t *Tile) error {
-		if t.generator && t.Team != 0 {
-			t.resources = resources[t.Team]
+		if t.generator && t.PlayerID != NeutralPlayer {
+			t.resources = resources[t.PlayerID]
 		}
 		return nil
 	})

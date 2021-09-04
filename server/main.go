@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,11 +21,8 @@ import (
 )
 
 var addr = flag.String("addr", ":8080", "http service address")
-var board *rpc.Board
 var lock sync.Mutex
 
-var p1 = false
-var p2 = false
 var ready = make(chan bool)
 
 var upgrader = websocket.Upgrader{} // use default options
@@ -34,9 +32,7 @@ type wsMessage struct {
 	Message []byte
 }
 
-func processCommand(player int, message []byte) {
-	lock.Lock()
-	defer lock.Unlock()
+func (gc *gameChannel) processCommand(player rpc.PlayerID, message []byte) {
 	var command rpc.Command
 	err := json.Unmarshal(message, &command)
 	if err != nil {
@@ -44,14 +40,14 @@ func processCommand(player int, message []byte) {
 		return
 	}
 
-	board.Transfer(
+	gc.board.Transfer(
 		player,
-		board.Tiles[command.SelectedX][command.SelectedY],
-		board.Tiles[command.TargetX][command.TargetY])
+		gc.board.Tiles[command.SelectedX][command.SelectedY],
+		gc.board.Tiles[command.TargetX][command.TargetY])
 }
 
-func boardToJSON() []byte {
-	js, err := json.Marshal(board)
+func (gc *gameChannel) boardToJSON() []byte {
+	js, err := json.Marshal(gc.board)
 	if err != nil {
 		log.Println("error marshaling board: ", err)
 		return []byte{}
@@ -59,50 +55,84 @@ func boardToJSON() []byte {
 	return js
 }
 
-func play1(w http.ResponseWriter, r *http.Request) {
-	c, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Print("upgrade:", err)
-		return
-	}
-	defer c.Close()
-	commands := make(chan wsMessage)
-	p1 = true
+var games = make(map[rpc.PlayerID]*gameChannel)
 
-	<-ready
+type gameChannel struct {
+	players []rpc.PlayerID
+	ready   chan bool
+	board   *rpc.Board
+}
 
-	done := make(chan bool)
-
-	go func() {
-		for {
-			fmt.Println("waiting to read msg")
-			mt, message, err := c.ReadMessage()
-			if err != nil {
-				log.Println("read:", err)
-				close(done)
-				break
-			}
-			commands <- wsMessage{mt, message}
-		}
-	}()
-	t := time.NewTicker(10 * time.Millisecond)
-	for {
-		select {
-		case wsMsg := <-commands:
-			processCommand(1, wsMsg.Message)
-			log.Printf("recv: %s", wsMsg.Message)
-		case <-done:
-			return
-		case <-t.C:
-			err = c.WriteMessage(1, boardToJSON())
-			if err != nil {
-				log.Println("write:", err)
-			}
-		}
+func NewGameChannel() *gameChannel {
+	return &gameChannel{
+		players: make([]rpc.PlayerID, 0),
+		ready:   make(chan bool),
 	}
 }
 
-func play2(w http.ResponseWriter, r *http.Request) {
+var players = make(chan int)
+
+// Obviously this is dirty; only call this if you're holding the lock
+func startGame() {
+	for _, p := range pendingGame.players {
+		games[p] = pendingGame
+	}
+	fmt.Println("starting game!")
+	pendingGame.board = rpc.NewBoard(pendingGame.players, 16)
+	pendingGame.board.Start()
+	close(pendingGame.ready)
+	pendingGame = nil
+}
+
+var pendingGame *gameChannel
+
+const (
+	maxPlayers = 4
+)
+
+func timer() {
+	ticker := time.NewTicker(20 * time.Second)
+
+	for {
+		lock.Lock()
+		if pendingGame != nil {
+			fmt.Println("checking pending game; players len = ", len(pendingGame.players))
+		}
+		if pendingGame != nil && len(pendingGame.players) >= 1 {
+			startGame()
+		}
+		lock.Unlock()
+		<-ticker.C
+	}
+}
+
+func addPlayer(p rpc.PlayerID) *gameChannel {
+	lock.Lock()
+	defer lock.Unlock()
+
+	if g, ok := games[p]; ok {
+		return g
+	}
+
+	if pendingGame == nil {
+		pendingGame = NewGameChannel()
+	}
+
+	fmt.Println("adding player: ", p)
+	if len(pendingGame.players) < maxPlayers {
+		pendingGame.players = append(pendingGame.players, p)
+	}
+
+	return pendingGame
+}
+
+// TODO cleanup games after they're done
+// TODO clean up games that are expired
+
+func play(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("path: ", r.URL.Path)
+	id := rpc.PlayerID(strings.SplitAfter(r.URL.Path, "/play/")[1])
+
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Print("upgrade:", err)
@@ -110,35 +140,36 @@ func play2(w http.ResponseWriter, r *http.Request) {
 	}
 	defer c.Close()
 	commands := make(chan wsMessage)
-	p2 = true
-
-	<-ready
 
 	done := make(chan bool)
 
+	game := addPlayer(id)
+
+	fmt.Printf("player added to game with id %s; waiting for game to start\n", id)
+	<-game.ready
+
 	go func() {
 		for {
-			fmt.Println("waiting to read msg")
 			mt, message, err := c.ReadMessage()
 			if err != nil {
-				log.Println("read:", err)
 				close(done)
 				break
 			}
 			commands <- wsMessage{mt, message}
 		}
 	}()
-	t := time.NewTicker(30 * time.Millisecond)
+
+	t := time.NewTicker(10 * time.Millisecond)
 
 	for {
 		select {
 		case wsMsg := <-commands:
-			processCommand(2, wsMsg.Message)
+			game.processCommand(id, wsMsg.Message)
 			log.Printf("recv: %s", wsMsg.Message)
 		case <-done:
 			return
 		case <-t.C:
-			err = c.WriteMessage(1, boardToJSON())
+			err = c.WriteMessage(1, game.boardToJSON())
 			if err != nil {
 				log.Println("write:", err)
 			}
@@ -147,21 +178,9 @@ func play2(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	board = rpc.NewBoard(16)
-
-	go func() {
-		for {
-			if p1 && p2 {
-				board.Start()
-				close(ready)
-				return
-			}
-		}
-	}()
-
+	go timer()
 	flag.Parse()
 	log.SetFlags(0)
-	http.HandleFunc("/play/1", play1)
-	http.HandleFunc("/play/2", play2)
+	http.HandleFunc("/play/", play)
 	log.Fatal(http.ListenAndServe(*addr, nil))
 }

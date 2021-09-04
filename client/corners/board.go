@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"sync"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/hajimehoshi/ebiten/v2"
 	"terrbear.io/corners/internal/rpc"
@@ -20,18 +21,18 @@ type Board struct {
 	targetX   int
 	targetY   int
 
-	size   int
-	tiles  [][]*Tile
-	offset image.Point
-	team   int
-	init   sync.Once
+	size     int
+	tiles    [][]*Tile
+	offset   image.Point
+	playerID rpc.PlayerID
+	init     sync.Once
 
 	command chan rpc.Command
 	board   rpc.Board
 }
 
 func (b *Board) runClient() {
-	u := url.URL{Scheme: "ws", Host: "tannis.local:8080", Path: fmt.Sprintf("/play/%d", b.team)}
+	u := url.URL{Scheme: "ws", Host: "tannis.local:8080", Path: "/play/" + string(b.playerID)}
 	log.Printf("connecting to %s", u.String())
 
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
@@ -110,15 +111,10 @@ func (b *Board) initBoard(board rpc.Board) {
 }
 
 // NewBoard generates a new Board with giving a size.
-func NewBoard(player1 bool) *Board {
+func NewBoard() *Board {
 	b := &Board{
-		command: make(chan rpc.Command),
-	}
-
-	if player1 {
-		b.team = 1
-	} else {
-		b.team = 2
+		command:  make(chan rpc.Command),
+		playerID: rpc.PlayerID(uuid.New().String()),
 	}
 
 	go b.startClient()
@@ -213,10 +209,9 @@ func (b *Board) Draw(boardImage *ebiten.Image) {
 	if len(b.tiles) > 0 {
 		b.forEach(0, 0, func(x, y int, t *Tile) error {
 			t.Draw(x, y, boardImage, &TileDrawParams{
-				boardTeam: b.team,
-				team:      t.team,
-				targeted:  x == b.targetX && y == b.targetY,
-				selected:  x == b.selectedX && y == b.selectedY,
+				boardPlayerID: b.playerID,
+				targeted:      x == b.targetX && y == b.targetY,
+				selected:      x == b.selectedX && y == b.selectedY,
 			})
 			return nil
 		})

@@ -56,10 +56,8 @@ func init() {
 
 // Tile represents a tile information including TileData and animation states.
 type Tile struct {
-	armies int
-	team   int
-	x      int
-	y      int
+	x int
+	y int
 
 	tile *rpc.Tile
 }
@@ -68,17 +66,14 @@ type TileParams struct {
 	x         int
 	y         int
 	resources int
-	team      int
 	generator bool
 }
 
 // NewTile creates a new Tile object.
 func NewTile(params *TileParams) *Tile {
 	t := &Tile{
-		x:      params.x,
-		y:      params.y,
-		team:   params.team,
-		armies: 0,
+		x: params.x,
+		y: params.y,
 	}
 	return t
 }
@@ -90,20 +85,6 @@ type UpdateParams struct {
 
 func (t *Tile) adjacent(other *Tile) bool {
 	return math.Abs(float64(t.x-other.x))+math.Abs(float64(t.y-other.y)) == 1
-}
-
-// TODO rules that you can only select your own team squares
-// TODO make army transfers locked
-// TODO wrap transfers in their own ob
-// TODO can't reduce a tile's army <1
-// TODO rename value to like 'army'
-
-func (t *Tile) Target(target *Tile) {
-	if t.adjacent(target) {
-		target.team = t.team
-		target.armies += t.armies
-		t.armies = 0
-	}
 }
 
 func colorToScale(clr color.Color) (float64, float64, float64, float64) {
@@ -134,6 +115,24 @@ func init() {
 	tileImage.Fill(color.White)
 }
 
+var playerMap = map[rpc.PlayerID]color.RGBA{
+	rpc.NeutralPlayer: {0xee, 0xe4, 0xda, 0x59},
+}
+
+var playerColors = []color.RGBA{
+	{0x44, 0x44, 0x00, 0x00}, // ??
+	{0x88, 0x00, 0x00, 0x00}, // red
+	{0x00, 0x44, 0x00, 0x00}, // green
+}
+
+func getPlayerColor(playerID rpc.PlayerID) color.RGBA {
+	if color, ok := playerMap[playerID]; ok {
+		return color
+	}
+	playerMap[playerID] = playerColors[len(playerMap)%len(playerColors)]
+	return playerMap[playerID]
+}
+
 func (t *Tile) bgColor(params *TileDrawParams) color.Color {
 	if params.selected {
 		return color.RGBA{0x00, 0x00, 0x00, 0xff}
@@ -154,11 +153,13 @@ func (t *Tile) bgColor(params *TileDrawParams) color.Color {
 			alpha = 0x66
 		}
 
-		switch t.tile.Team {
-		case 1:
-			return color.RGBA{0x00, 0x00, 0x88, alpha}
-		case 2:
-			return color.RGBA{0x88, 0x00, 0x00, alpha}
+		switch t.tile.PlayerID {
+		case params.boardPlayerID:
+			return color.RGBA{0x00, 0x00, 0x88, alpha} // blue
+		default:
+			c := getPlayerColor(t.tile.PlayerID)
+			c.A = alpha
+			return c
 		}
 	}
 
@@ -166,10 +167,9 @@ func (t *Tile) bgColor(params *TileDrawParams) color.Color {
 }
 
 type TileDrawParams struct {
-	boardTeam int
-	selected  bool
-	targeted  bool
-	team      int
+	boardPlayerID rpc.PlayerID
+	selected      bool
+	targeted      bool
 }
 
 // Draw draws the current tile to the given boardImage.
@@ -190,10 +190,10 @@ func (t *Tile) Draw(x, y int, boardImage *ebiten.Image, params *TileDrawParams) 
 	str := strconv.Itoa(v)
 
 	if t.tile != nil {
-		if t.tile.Team == 0 && t.tile.Armies == 0 {
+		if t.tile.PlayerID == rpc.NeutralPlayer && t.tile.Armies == 0 {
 			return
 		}
-		if t.tile.Team != 0 && t.tile.Team != params.boardTeam {
+		if t.tile.PlayerID != rpc.NeutralPlayer && t.tile.PlayerID != params.boardPlayerID {
 			return
 		}
 	}

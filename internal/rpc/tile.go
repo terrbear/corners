@@ -10,10 +10,10 @@ import (
 
 // Tile represents a tile information including TileData and animation states.
 type Tile struct {
-	Armies    int `json:"armies"`
-	Team      int `json:"team"`
-	X         int `json:"x"`
-	Y         int `json:"y"`
+	Armies    int      `json:"armies"`
+	PlayerID  PlayerID `json:"playerID"`
+	X         int      `json:"x"`
+	Y         int      `json:"y"`
 	resources int
 	generator bool
 	lock      sync.Mutex
@@ -24,7 +24,7 @@ type TileParams struct {
 	x         int
 	y         int
 	resources int
-	team      int
+	playerID  PlayerID
 	generator bool
 }
 
@@ -50,7 +50,7 @@ func NewTile(params *TileParams) *Tile {
 		resources: params.resources,
 		X:         params.x,
 		Y:         params.y,
-		Team:      params.team,
+		PlayerID:  params.playerID,
 		Armies:    0,
 		generator: params.generator,
 	}
@@ -65,7 +65,7 @@ func NewTile(params *TileParams) *Tile {
 func (t *Tile) add(other *Tile, armies int) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
-	t.Team = other.Team
+	t.PlayerID = other.PlayerID
 	fmt.Printf("adding %d armies to tile; current armies: %d\n", armies, t.Armies)
 	t.Armies += armies
 }
@@ -82,12 +82,6 @@ func (t *Tile) take(armies int) int {
 	t.Armies -= armies
 	return armies
 }
-
-// TODO rules that you can only select your own team squares
-// TODO make army transfers locked
-// TODO wrap transfers in their own ob
-// TODO can't reduce a tile's army <1
-// TODO rename value to like 'army'
 
 // Super simple risk rolling for now, returns values to take away from attacker and defender armies
 func roll(attackers, defenders int) (int, int) {

@@ -31,7 +31,7 @@ func NewGame(p1 bool) (*Game, error) {
 		player1: p1,
 		input:   NewInput(),
 	}
-	g.board = NewBoard(p1)
+	g.board = NewBoard()
 	return g, nil
 }
 
