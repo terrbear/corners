@@ -17,30 +17,24 @@ const (
 	ScreenHeight = 1600
 )
 
-// Game represents a game state.
 type Game struct {
 	input      *Input
 	board      *Board
-	player1    bool
 	boardImage *ebiten.Image
 }
 
-// NewGame generates a new Game object.
 func NewGame(p1 bool) (*Game, error) {
 	g := &Game{
-		player1: p1,
-		input:   NewInput(),
+		input: NewInput(),
 	}
 	g.board = NewBoard()
 	return g, nil
 }
 
-// Layout implements ebiten.Game's Layout.
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
 	return ScreenWidth, ScreenHeight
 }
 
-// Update updates the current game state.
 func (g *Game) Update() error {
 	g.input.Update()
 	if err := g.board.Update(g.input); err != nil {
@@ -49,7 +43,6 @@ func (g *Game) Update() error {
 	return nil
 }
 
-// Draw draws the current game to the given screen.
 func (g *Game) Draw(screen *ebiten.Image) {
 	if g.boardImage == nil || g.board.size != 0 {
 		w, h := g.board.Size()

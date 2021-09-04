@@ -6,7 +6,6 @@ import (
 	"image"
 	"image/color"
 	"log"
-	"net/url"
 	"sync"
 
 	"github.com/google/uuid"
@@ -33,9 +32,7 @@ type Board struct {
 }
 
 func (b *Board) runClient() {
-	u := url.URL{Scheme: "ws", Host: "tannis.local:8080", Path: "/play/" + string(b.playerID)}
-	log.Printf("connecting to %s", u.String())
-
+	u := rpc.ServerURL(b.playerID)
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
 		log.Fatal("dial:", err)
@@ -58,12 +55,15 @@ func (b *Board) runClient() {
 				continue
 			}
 
+			fmt.Println("message: ", string(message))
+
 			var board rpc.Board
 			err = json.Unmarshal(message, &board)
 			if err != nil {
 				log.Println("error unmarshaling board: ", err)
 				continue
 			}
+			log.Println("received board: ", board)
 			b.initBoard(board)
 			b.board = board
 		}
@@ -111,7 +111,6 @@ func (b *Board) initBoard(board rpc.Board) {
 	})
 }
 
-// NewBoard generates a new Board with giving a size.
 func NewBoard() *Board {
 	b := &Board{
 		command:  make(chan rpc.Command),

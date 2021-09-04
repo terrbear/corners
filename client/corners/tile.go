@@ -3,7 +3,6 @@ package corners
 import (
 	"image/color"
 	"log"
-	"math"
 	"strconv"
 
 	"golang.org/x/image/font"
@@ -66,7 +65,6 @@ type TileParams struct {
 	x         int
 	y         int
 	resources int
-	generator bool
 }
 
 // NewTile creates a new Tile object.
@@ -76,30 +74,6 @@ func NewTile(params *TileParams) *Tile {
 		y: params.y,
 	}
 	return t
-}
-
-type UpdateParams struct {
-	selected *bool
-	targeted bool
-}
-
-func (t *Tile) adjacent(other *Tile) bool {
-	return math.Abs(float64(t.x-other.x))+math.Abs(float64(t.y-other.y)) == 1
-}
-
-func colorToScale(clr color.Color) (float64, float64, float64, float64) {
-	r, g, b, a := clr.RGBA()
-	rf := float64(r) / 0xffff
-	gf := float64(g) / 0xffff
-	bf := float64(b) / 0xffff
-	af := float64(a) / 0xffff
-	// Convert to non-premultiplied alpha components.
-	if af > 0 {
-		rf /= af
-		gf /= af
-		bf /= af
-	}
-	return rf, gf, bf, af
 }
 
 const (
@@ -113,24 +87,6 @@ var (
 
 func init() {
 	tileImage.Fill(color.White)
-}
-
-var playerMap = map[rpc.PlayerID]color.RGBA{
-	rpc.NeutralPlayer: {0xee, 0xe4, 0xda, 0x59},
-}
-
-var playerColors = []color.RGBA{
-	{0x44, 0x44, 0x00, 0x00}, // ??
-	{0x88, 0x00, 0x00, 0x00}, // red
-	{0x00, 0x44, 0x44, 0x00}, // ??
-}
-
-func getPlayerColor(playerID rpc.PlayerID) color.RGBA {
-	if color, ok := playerMap[playerID]; ok {
-		return color
-	}
-	playerMap[playerID] = playerColors[len(playerMap)%len(playerColors)]
-	return playerMap[playerID]
 }
 
 func (t *Tile) bgColor(params *TileDrawParams) color.Color {

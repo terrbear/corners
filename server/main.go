@@ -18,6 +18,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"terrbear.io/corners/internal/rpc"
+	"terrbear.io/corners/server/corners"
 )
 
 var lock sync.Mutex
@@ -46,7 +47,8 @@ func (gc *gameChannel) processCommand(player rpc.PlayerID, message []byte) {
 }
 
 func (gc *gameChannel) boardToJSON() []byte {
-	js, err := json.Marshal(gc.board)
+	board := gc.board.ToRPCBoard()
+	js, err := json.Marshal(board)
 	if err != nil {
 		log.Println("error marshaling board: ", err)
 		return []byte{}
@@ -59,7 +61,7 @@ var games = make(map[rpc.PlayerID]*gameChannel)
 type gameChannel struct {
 	players []rpc.PlayerID
 	ready   chan bool
-	board   *rpc.Board
+	board   *corners.Board
 }
 
 func NewGameChannel() *gameChannel {
@@ -77,7 +79,7 @@ func startGame() {
 		games[p] = pendingGame
 	}
 	fmt.Println("starting game!")
-	pendingGame.board = rpc.NewBoard(pendingGame.players, 16)
+	pendingGame.board = corners.NewBoard(pendingGame.players, 16)
 	pendingGame.board.Start()
 	close(pendingGame.ready)
 	pendingGame = nil
@@ -87,6 +89,7 @@ var pendingGame *gameChannel
 
 const (
 	maxPlayers = 4
+	minPlayers = 1
 )
 
 func timer() {
@@ -97,7 +100,7 @@ func timer() {
 		if pendingGame != nil {
 			fmt.Println("checking pending game; players len = ", len(pendingGame.players))
 		}
-		if pendingGame != nil && len(pendingGame.players) >= 2 {
+		if pendingGame != nil && len(pendingGame.players) >= minPlayers {
 			startGame()
 		}
 		lock.Unlock()
@@ -182,6 +185,7 @@ func main() {
 		port = "8080"
 	}
 
+	fmt.Println("starting server on port ", port)
 	go timer()
 	log.SetFlags(0)
 	http.HandleFunc("/play/", play)
