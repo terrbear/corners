@@ -13,6 +13,9 @@ build_server:
 publish:
 	scp bin/corners hulk.local:/usr/local/bin
 
+lint:
+	golangci-lint run --tests=false ./...
+
 run: build
 	bin/server &
 	bin/corners &

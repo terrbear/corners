@@ -8,8 +8,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -17,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	log "github.com/sirupsen/logrus"
 	"terrbear.io/corners/internal/rpc"
 	"terrbear.io/corners/server/corners"
 )
@@ -50,7 +49,7 @@ func (gc *gameChannel) boardToJSON() []byte {
 	board := gc.board.ToRPCBoard()
 	js, err := json.Marshal(board)
 	if err != nil {
-		log.Println("error marshaling board: ", err)
+		log.WithError(err).Error("error marshaling board")
 		return []byte{}
 	}
 	return js
@@ -78,7 +77,7 @@ func startGame() {
 	for _, p := range pendingGame.players {
 		games[p] = pendingGame
 	}
-	fmt.Println("starting game!")
+	log.Info("starting game!")
 	pendingGame.board = corners.NewBoard(pendingGame.players, 16)
 	pendingGame.board.Start()
 	close(pendingGame.ready)
@@ -98,7 +97,7 @@ func timer() {
 	for {
 		lock.Lock()
 		if pendingGame != nil {
-			fmt.Println("checking pending game; players len = ", len(pendingGame.players))
+			log.Debug("checking pending game; players len = ", len(pendingGame.players))
 		}
 		if pendingGame != nil && len(pendingGame.players) >= minPlayers {
 			startGame()
@@ -120,7 +119,7 @@ func addPlayer(p rpc.PlayerID) *gameChannel {
 		pendingGame = NewGameChannel()
 	}
 
-	fmt.Println("adding player: ", p)
+	log.WithField("playerID", p).Debug("adding player")
 	if len(pendingGame.players) < maxPlayers {
 		pendingGame.players = append(pendingGame.players, p)
 	}
@@ -132,7 +131,7 @@ func addPlayer(p rpc.PlayerID) *gameChannel {
 // TODO clean up games that are expired
 
 func play(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("path: ", r.URL.Path)
+	log.Trace("path: ", r.URL.Path)
 	id := rpc.PlayerID(strings.SplitAfter(r.URL.Path, "/play/")[1])
 
 	c, err := upgrader.Upgrade(w, r, nil)
@@ -147,7 +146,7 @@ func play(w http.ResponseWriter, r *http.Request) {
 
 	game := addPlayer(id)
 
-	fmt.Printf("player added to game with id %s; waiting for game to start\n", id)
+	log.Debugf("player added to game with id %s; waiting for game to start\n", id)
 	<-game.ready
 
 	go func() {
@@ -185,9 +184,8 @@ func main() {
 		port = "8080"
 	}
 
-	fmt.Println("starting server on port ", port)
+	log.Info("starting server on port ", port)
 	go timer()
-	log.SetFlags(0)
 	http.HandleFunc("/play/", play)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }

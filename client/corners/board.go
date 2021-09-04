@@ -2,15 +2,14 @@ package corners
 
 import (
 	"encoding/json"
-	"fmt"
 	"image"
 	"image/color"
-	"log"
 	"sync"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/hajimehoshi/ebiten/v2"
+	log "github.com/sirupsen/logrus"
 	"terrbear.io/corners/internal/rpc"
 )
 
@@ -55,15 +54,15 @@ func (b *Board) runClient() {
 				continue
 			}
 
-			fmt.Println("message: ", string(message))
+			log.Trace("rpc message: ", string(message))
 
 			var board rpc.Board
 			err = json.Unmarshal(message, &board)
 			if err != nil {
-				log.Println("error unmarshaling board: ", err)
+				log.WithError(err).Error("error unmarshaling board")
 				continue
 			}
-			log.Println("received board: ", board)
+			log.Trace("board: ", board)
 			b.initBoard(board)
 			b.board = board
 		}
@@ -77,7 +76,7 @@ func (b *Board) runClient() {
 				log.Println("couldn't marshal command: ", err)
 				continue
 			}
-			fmt.Println("sending message: ", string(msg))
+			log.Trace("sending message: ", string(msg))
 			err = c.WriteMessage(websocket.TextMessage, msg)
 			if err != nil {
 				log.Println("couldn't write command: ", err)
@@ -97,7 +96,7 @@ func (b *Board) startClient() {
 
 func (b *Board) initBoard(board rpc.Board) {
 	b.init.Do(func() {
-		fmt.Println("initializing board with size: ", len(board.Tiles))
+		log.Debug("initializing board with size: ", len(board.Tiles))
 		tiles := make([][]*Tile, len(board.Tiles))
 		for x := range tiles {
 			tiles[x] = make([]*Tile, len(board.Tiles))
@@ -142,7 +141,10 @@ func (b *Board) forEach(x, y int, f func(int, int, *Tile) error) error {
 	for col := range b.tiles {
 		for row := range b.tiles[col] {
 			b.tiles[row][col].tile = b.board.Tiles[row][col]
-			f(col, row, b.tiles[col][row])
+			err := f(col, row, b.tiles[col][row])
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -166,12 +168,11 @@ func (b *Board) Update(input *Input) error {
 	if clickedX >= 0 && clickedY >= 0 {
 		b.selectedX = clickedX
 		b.selectedY = clickedY
-		fmt.Printf("selected: %d, %d\n", clickedX, clickedY)
+		log.Debugf("selected: %d, %d\n", clickedX, clickedY)
 	}
 
-	// fmt.Printf("selected: %+v\n", selected)
 	if b.selectedX >= 0 && b.selectedY >= 0 && targetX >= 0 && targetY >= 0 {
-		fmt.Printf("target: %d, %d\n", targetX, targetY)
+		log.Debugf("target: %d, %d\n", targetX, targetY)
 		go func() {
 			b.transfer(b.selectedX, b.selectedY, targetX, targetY)
 		}()
@@ -210,7 +211,7 @@ func (b *Board) Draw(boardImage *ebiten.Image) {
 		}
 	}
 	if len(b.tiles) > 0 {
-		b.forEach(0, 0, func(x, y int, t *Tile) error {
+		err := b.forEach(0, 0, func(x, y int, t *Tile) error {
 			t.Draw(x, y, boardImage, &TileDrawParams{
 				boardPlayerID: b.playerID,
 				targeted:      x == b.targetX && y == b.targetY,
@@ -218,5 +219,8 @@ func (b *Board) Draw(boardImage *ebiten.Image) {
 			})
 			return nil
 		})
+		if err != nil {
+			log.WithError(err).Error("couldn't draw board")
+		}
 	}
 }

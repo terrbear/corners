@@ -1,11 +1,11 @@
 package corners
 
 import (
-	"fmt"
 	"math"
 	"sync"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"terrbear.io/corners/internal/rpc"
 )
 
@@ -50,8 +50,8 @@ func NewBoard(playerIDs []rpc.PlayerID, size int) *Board {
 	return b
 }
 
-func (b *Board) Start() {
-	b.forEach(0, 0, func(x, y int, tile *Tile) error {
+func (b *Board) Start() error {
+	return b.forEach(0, 0, func(x, y int, tile *Tile) error {
 		tile.Start()
 		return nil
 	})
@@ -78,7 +78,10 @@ func (b *Board) ToRPCBoard() *rpc.Board {
 func (b *Board) forEach(x, y int, f func(int, int, *Tile) error) error {
 	for col := range b.Tiles {
 		for row := range b.Tiles[col] {
-			f(col, row, b.Tiles[col][row])
+			err := f(col, row, b.Tiles[col][row])
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -124,12 +127,12 @@ func (b *Board) runTransfer(t *Transfer) {
 
 		targetX, targetY := t.from.X+x, t.from.Y+y
 
-		// fmt.Printf("moving %d armies from %d,%d to %d,%d\n", t.armies, t.from.x, t.from.y, targetX, targetY)
+		log.Tracef("moving %d armies from %d,%d to %d,%d\n", t.armies, t.from.X, t.from.Y, targetX, targetY)
 
 		dest := b.Tiles[targetX][targetY]
 
 		if dest.PlayerID != t.from.PlayerID && dest.Armies > 0 {
-			fmt.Println("calling attack!")
+			log.Trace("attacking!")
 			t.from.attack(dest)
 		}
 
@@ -138,7 +141,7 @@ func (b *Board) runTransfer(t *Transfer) {
 			dest.add(t.from, t.armies)
 			t.from = dest
 		} else {
-			fmt.Println("grabbing low bar from armies")
+			log.Trace("grabbing low bar from armies")
 			t.armies = int(math.Min(float64(t.from.Armies), float64(t.armies)))
 		}
 
@@ -146,7 +149,6 @@ func (b *Board) runTransfer(t *Transfer) {
 			return
 		}
 
-		fmt.Println("sleeping")
 		<-ticker.C
 	}
 }
@@ -169,7 +171,7 @@ func (b *Board) Transfer(playerID rpc.PlayerID, source, dest *Tile) {
 		return
 	}
 
-	fmt.Printf("source offered %d armies\n", armies)
+	log.Tracef("source offered %d armies\n", armies)
 
 	t := Transfer{
 		armies: armies,
@@ -180,23 +182,27 @@ func (b *Board) Transfer(playerID rpc.PlayerID, source, dest *Tile) {
 	go b.runTransfer(&t)
 }
 
-func (b *Board) Tick() error {
+func (b *Board) Tick() {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
 	resources := make(map[rpc.PlayerID]int)
 
-	b.forEach(0, 0, func(x, y int, t *Tile) error {
+	err := b.forEach(0, 0, func(x, y int, t *Tile) error {
 		resources[t.PlayerID]++
 		return nil
 	})
+	if err != nil {
+		log.WithError(err).Error("error adding resources")
+	}
 
-	b.forEach(0, 0, func(x, y int, t *Tile) error {
+	err = b.forEach(0, 0, func(x, y int, t *Tile) error {
 		if t.generator && t.PlayerID != rpc.NeutralPlayer {
 			t.resources = resources[t.PlayerID]
 		}
 		return nil
 	})
-
-	return nil
+	if err != nil {
+		log.WithError(err).Error("error adding resources to generators")
+	}
 }

@@ -1,10 +1,10 @@
 package corners
 
 import (
-	"fmt"
 	"image"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	log "github.com/sirupsen/logrus"
 )
 
 type mouseState int
@@ -56,7 +56,7 @@ func (i *Input) Update() {
 			i.left.x = x
 			i.left.y = y
 			i.left.state = mouseStateDown
-			fmt.Println("left mouse click: ", x, y)
+			log.Debug("left mouse click: ", x, y)
 		}
 	case mouseStateDown, mouseStateSettled:
 		if !ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
@@ -75,7 +75,7 @@ func (i *Input) Update() {
 			i.right.x = x
 			i.right.y = y
 			i.right.state = mouseStateDown
-			fmt.Println("right mouse click: ", x, y)
+			log.Debug("right mouse click: ", x, y)
 		}
 	case mouseStateDown, mouseStateSettled:
 		if !ebiten.IsMouseButtonPressed(ebiten.MouseButtonRight) {

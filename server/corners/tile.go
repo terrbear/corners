@@ -1,12 +1,12 @@
 package corners
 
 import (
-	"fmt"
 	"math/rand"
 	"sort"
 	"sync"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"terrbear.io/corners/internal/rpc"
 )
 
@@ -77,7 +77,7 @@ func (t *Tile) add(other *Tile, armies int) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	t.PlayerID = other.PlayerID
-	fmt.Printf("adding %d armies to tile; current armies: %d\n", armies, t.Armies)
+	log.Debugf("adding %d armies to tile; current armies: %d\n", armies, t.Armies)
 	t.Armies += armies
 }
 
@@ -145,7 +145,7 @@ func (t *Tile) attack(defender *Tile) {
 
 	alosses, dlosses := roll(attackers, defenders)
 
-	fmt.Printf("attacker loses %d armies, defender loses %d armies\n", alosses, dlosses)
+	log.Debugf("attacker loses %d armies, defender loses %d armies\n", alosses, dlosses)
 	t.Armies -= alosses
 	defender.Armies -= dlosses
 
