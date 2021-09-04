@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
+	"image/color"
 	"log"
 	"net/url"
 	"sync"
@@ -193,16 +194,19 @@ func (b *Board) Draw(boardImage *ebiten.Image) {
 
 	for j := 0; j < b.size; j++ {
 		for i := 0; i < b.size; i++ {
-			v := 0
 			op := &ebiten.DrawImageOptions{}
 			x := i*tileSize + (i+1)*tileMargin
 			y := j*tileSize + (j+1)*tileMargin
+			cr, cg, cb, ca := colorToScale(color.NRGBA{0xee, 0xe4, 0xda, 0x59})
+			if b.selectedX == i && b.selectedY == j {
+				x *= 2
+				y *= 2
+				//x -= tileMargin
+				//y -= tileMargin
+				cr, cg, cb, ca = colorToScale(color.RGBA{0x0, 0x0, 0x0, 0x0})
+			}
 			op.GeoM.Translate(float64(x), float64(y))
-			r, g, b, a := colorToScale(tileBackgroundColor(v))
-			op.ColorM.Scale(r, g, b, a)
-			/*if j == 0 && i == 0 {
-				fmt.Printf("drawing tile bg image: %+v\n", tileImage.Bounds())
-			}*/
+			op.ColorM.Scale(cr, cg, cb, ca)
 			boardImage.DrawImage(tileImage, op)
 		}
 	}

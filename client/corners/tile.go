@@ -122,7 +122,7 @@ var playerMap = map[rpc.PlayerID]color.RGBA{
 var playerColors = []color.RGBA{
 	{0x44, 0x44, 0x00, 0x00}, // ??
 	{0x88, 0x00, 0x00, 0x00}, // red
-	{0x00, 0x44, 0x00, 0x00}, // green
+	{0x00, 0x44, 0x44, 0x00}, // ??
 }
 
 func getPlayerColor(playerID rpc.PlayerID) color.RGBA {
@@ -135,9 +135,7 @@ func getPlayerColor(playerID rpc.PlayerID) color.RGBA {
 
 func (t *Tile) bgColor(params *TileDrawParams) color.Color {
 	if params.selected {
-		return color.RGBA{0x00, 0x00, 0x00, 0xff}
-	} else if params.targeted {
-		return color.RGBA{0x00, 0x88, 0x00, 0xff}
+		return color.RGBA{0x00, 0xaf, 0x00, 0x33}
 	}
 
 	if t.tile != nil {
@@ -173,12 +171,21 @@ type TileDrawParams struct {
 }
 
 // Draw draws the current tile to the given boardImage.
-func (t *Tile) Draw(x, y int, boardImage *ebiten.Image, params *TileDrawParams) {
-	i, j := x, y
+func (t *Tile) Draw(xoffset, yoffset int, boardImage *ebiten.Image, params *TileDrawParams) {
+	i, j := xoffset, yoffset
 
 	op := &ebiten.DrawImageOptions{}
-	x = i*tileSize + (i+1)*tileMargin
-	y = j*tileSize + (j+1)*tileMargin
+	x := float64(i*tileSize + (i+1)*tileMargin)
+	y := float64(j*tileSize + (j+1)*tileMargin)
+
+	if params.selected {
+		scale := float64(tileSize+(tileMargin*2)) / tileSize
+		x -= tileMargin
+		y -= tileMargin
+		op.GeoM.Scale(scale, scale)
+		//op.GeoM.Translate(float64(x*2), float64(y*2))
+		//op.GeoM.Fill(color.RGBA{0x00, 0x00, 0x00, 0xff})
+	}
 	op.GeoM.Translate(float64(x), float64(y))
 	r, g, b, a := colorToScale(t.bgColor(params))
 	op.ColorM.Scale(r, g, b, a)
@@ -214,8 +221,12 @@ func (t *Tile) Draw(x, y int, boardImage *ebiten.Image, params *TileDrawParams) 
 	bound, _ := font.BoundString(f, str)
 	w := (bound.Max.X - bound.Min.X).Ceil()
 	h := (bound.Max.Y - bound.Min.Y).Ceil()
-	x = x + (tileSize-w)/2
-	y = y + (tileSize-h)/2 + h
+	x = x + float64((tileSize-w)/2)
+	y = y + float64((tileSize-h)/2+h)
 
-	text.Draw(boardImage, str, f, x, y, tileColor(v))
+	c := color.RGBA{0xff, 0xff, 0xff, 0xff}
+	if t.tile != nil && t.tile.PlayerID == rpc.NeutralPlayer {
+		c = color.RGBA{0x00, 0x00, 0x00, 0xff}
+	}
+	text.Draw(boardImage, str, f, int(x), int(y), c)
 }

@@ -8,7 +8,6 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -20,7 +19,6 @@ import (
 	"terrbear.io/corners/internal/rpc"
 )
 
-var addr = flag.String("addr", ":8080", "http service address")
 var lock sync.Mutex
 
 var ready = make(chan bool)
@@ -91,14 +89,14 @@ const (
 )
 
 func timer() {
-	ticker := time.NewTicker(20 * time.Second)
+	ticker := time.NewTicker(10 * time.Second)
 
 	for {
 		lock.Lock()
 		if pendingGame != nil {
 			fmt.Println("checking pending game; players len = ", len(pendingGame.players))
 		}
-		if pendingGame != nil && len(pendingGame.players) >= 1 {
+		if pendingGame != nil && len(pendingGame.players) >= 2 {
 			startGame()
 		}
 		lock.Unlock()
@@ -178,9 +176,13 @@ func play(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	port, ok := os.Lookupenv("PORT")
+	if !ok {
+		port = "8080"
+	}
+
 	go timer()
-	flag.Parse()
 	log.SetFlags(0)
 	http.HandleFunc("/play/", play)
-	log.Fatal(http.ListenAndServe(*addr, nil))
+	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
