@@ -80,7 +80,7 @@ func (t *Tile) moveTo(dest *Tile, armies int) {
 
 	armies = t.availableArmies(armies)
 
-	log.Debugf("adding %d armies to tile (%d,%d) from tile (%d,%d); current armies: %d\n", armies, dest.X, dest.Y, t.X, t.Y, t.Armies)
+	log.Debugf("adding %d armies to tile (%d,%d) from tile (%d,%d) with armies %d; current armies: %d\n", armies, dest.X, dest.Y, t.X, t.Y, dest.Armies, t.Armies)
 
 	dest.PlayerID = t.PlayerID
 	dest.Armies += armies

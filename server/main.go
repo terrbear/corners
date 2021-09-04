@@ -8,14 +8,15 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
+	"terrbear.io/corners/internal/env"
 	"terrbear.io/corners/internal/rpc"
 	"terrbear.io/corners/server/corners"
 )
@@ -92,7 +93,7 @@ const (
 )
 
 func timer() {
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(time.Second)
 
 	for {
 		lock.Lock()
@@ -179,13 +180,8 @@ func play(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	port, ok := os.LookupEnv("PORT")
-	if !ok {
-		port = "8080"
-	}
-
-	log.Info("starting server on port ", port)
+	log.Info("starting server on port ", env.Port())
 	go timer()
 	http.HandleFunc("/play/", play)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", env.Port()), nil))
 }
