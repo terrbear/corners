@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -176,7 +177,7 @@ func play(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	port, ok := os.Lookupenv("PORT")
+	port, ok := os.LookupEnv("PORT")
 	if !ok {
 		port = "8080"
 	}
