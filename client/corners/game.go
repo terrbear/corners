@@ -15,7 +15,6 @@ func init() {
 const (
 	ScreenWidth  = 1600
 	ScreenHeight = 1600
-	boardSize    = 16
 )
 
 // Game represents a game state.
@@ -32,7 +31,7 @@ func NewGame(p1 bool) (*Game, error) {
 		player1: p1,
 		input:   NewInput(),
 	}
-	g.board = NewBoard(boardSize, p1)
+	g.board = NewBoard(p1)
 	return g, nil
 }
 
@@ -52,7 +51,7 @@ func (g *Game) Update() error {
 
 // Draw draws the current game to the given screen.
 func (g *Game) Draw(screen *ebiten.Image) {
-	if g.boardImage == nil {
+	if g.boardImage == nil || g.board.size != 0 {
 		w, h := g.board.Size()
 		g.boardImage = ebiten.NewImage(w, h)
 	}

@@ -6,6 +6,7 @@ import (
 	"image"
 	"log"
 	"net/url"
+	"sync"
 
 	"github.com/gorilla/websocket"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -19,12 +20,11 @@ type Board struct {
 	targetX   int
 	targetY   int
 
-	size     int
-	tiles    [][]*Tile
-	offset   image.Point
-	bluebase *Tile
-	redbase  *Tile
-	team     int
+	size   int
+	tiles  [][]*Tile
+	offset image.Point
+	team   int
+	init   sync.Once
 
 	command chan rpc.Command
 	board   rpc.Board
@@ -57,12 +57,12 @@ func (b *Board) runClient() {
 			}
 
 			var board rpc.Board
-			//log.Printf("recv: %s", message)
 			err = json.Unmarshal(message, &board)
 			if err != nil {
 				log.Println("error unmarshaling board: ", err)
 				continue
 			}
+			b.initBoard(board)
 			b.board = board
 		}
 	}()
@@ -93,27 +93,26 @@ func (b *Board) startClient() {
 	}
 }
 
-// NewBoard generates a new Board with giving a size.
-func NewBoard(size int, player1 bool) *Board {
-	tiles := make([][]*Tile, size)
-	for x := range tiles {
-		tiles[x] = make([]*Tile, size)
-		for y := range tiles[x] {
-			tiles[x][y] = NewTile(&TileParams{x: x, y: y, resources: 1})
+func (b *Board) initBoard(board rpc.Board) {
+	b.init.Do(func() {
+		fmt.Println("initializing board with size: ", len(board.Tiles))
+		tiles := make([][]*Tile, len(board.Tiles))
+		for x := range tiles {
+			tiles[x] = make([]*Tile, len(board.Tiles))
+			for y := range tiles[x] {
+				tiles[x][y] = NewTile(&TileParams{x: x, y: y, resources: 1})
+			}
 		}
-	}
 
-	bluebase := NewTile(&TileParams{generator: true, team: 1})
-	redbase := NewTile(&TileParams{generator: true, team: 2, x: size - 1, y: size - 1})
-	tiles[0][0] = bluebase
-	tiles[size-1][size-1] = redbase
+		b.tiles = tiles
+		b.size = len(board.Tiles)
+	})
+}
 
+// NewBoard generates a new Board with giving a size.
+func NewBoard(player1 bool) *Board {
 	b := &Board{
-		command:  make(chan rpc.Command),
-		size:     size,
-		tiles:    tiles,
-		redbase:  redbase,
-		bluebase: bluebase,
+		command: make(chan rpc.Command),
 	}
 
 	if player1 {
@@ -211,12 +210,15 @@ func (b *Board) Draw(boardImage *ebiten.Image) {
 			boardImage.DrawImage(tileImage, op)
 		}
 	}
-	b.forEach(0, 0, func(x, y int, t *Tile) error {
-		t.Draw(x, y, boardImage, &TileDrawParams{
-			team:     t.team,
-			targeted: x == b.targetX && y == b.targetY,
-			selected: x == b.selectedX && y == b.selectedY,
+	if len(b.tiles) > 0 {
+		b.forEach(0, 0, func(x, y int, t *Tile) error {
+			t.Draw(x, y, boardImage, &TileDrawParams{
+				boardTeam: b.team,
+				team:      t.team,
+				targeted:  x == b.targetX && y == b.targetY,
+				selected:  x == b.selectedX && y == b.selectedY,
+			})
+			return nil
 		})
-		return nil
-	})
+	}
 }

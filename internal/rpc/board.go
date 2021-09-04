@@ -9,11 +9,9 @@ import (
 
 // Board represents the game board.
 type Board struct {
-	Tiles    [][]*Tile `json:"tiles"`
-	size     int
-	bluebase *Tile
-	redbase  *Tile
-	lock     sync.Mutex
+	Tiles [][]*Tile `json:"tiles"`
+	size  int
+	lock  sync.Mutex
 }
 
 // NewBoard generates a new Board with giving a size.
@@ -37,10 +35,8 @@ func NewBoard(size int) *Board {
 	tiles[size-1][0].generator = true
 
 	b := &Board{
-		size:     size,
-		Tiles:    tiles,
-		redbase:  redbase,
-		bluebase: bluebase,
+		size:  size,
+		Tiles: tiles,
 	}
 
 	go func() {
@@ -71,7 +67,6 @@ func (b *Board) forEach(x, y int, f func(int, int, *Tile) error) error {
 	return nil
 }
 
-// TODO make this try to follow a diagonal
 func movementVector(from, to *Tile) (int, int) {
 	if from.X < to.X {
 		return 1, 0
@@ -170,8 +165,6 @@ func (b *Board) Tick() error {
 	defer b.lock.Unlock()
 
 	resources := make(map[int]int)
-	b.bluebase.resources = 0
-	b.redbase.resources = 0
 
 	b.forEach(0, 0, func(x, y int, t *Tile) error {
 		resources[t.Team]++

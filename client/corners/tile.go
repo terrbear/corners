@@ -113,7 +113,7 @@ func colorToScale(clr color.Color) (float64, float64, float64, float64) {
 	bf := float64(b) / 0xffff
 	af := float64(a) / 0xffff
 	// Convert to non-premultiplied alpha components.
-	if 0 < af {
+	if af > 0 {
 		rf /= af
 		gf /= af
 		bf /= af
@@ -142,11 +142,23 @@ func (t *Tile) bgColor(params *TileDrawParams) color.Color {
 	}
 
 	if t.tile != nil {
+		alpha := uint8(0x33)
+
+		if t.tile.Armies > 200 {
+			alpha = 0xff
+		} else if t.tile.Armies > 100 {
+			alpha = 0xaa
+		} else if t.tile.Armies > 50 {
+			alpha = 0x88
+		} else if t.tile.Armies > 10 {
+			alpha = 0x66
+		}
+
 		switch t.tile.Team {
 		case 1:
-			return color.RGBA{0x00, 0x00, 0x88, 0xff}
+			return color.RGBA{0x00, 0x00, 0x88, alpha}
 		case 2:
-			return color.RGBA{0x88, 0x00, 0x00, 0xff}
+			return color.RGBA{0x88, 0x00, 0x00, alpha}
 		}
 	}
 
@@ -154,9 +166,10 @@ func (t *Tile) bgColor(params *TileDrawParams) color.Color {
 }
 
 type TileDrawParams struct {
-	selected bool
-	targeted bool
-	team     int
+	boardTeam int
+	selected  bool
+	targeted  bool
+	team      int
 }
 
 // Draw draws the current tile to the given boardImage.
@@ -175,6 +188,15 @@ func (t *Tile) Draw(x, y int, boardImage *ebiten.Image, params *TileDrawParams) 
 	}
 	boardImage.DrawImage(tileImage, op)
 	str := strconv.Itoa(v)
+
+	if t.tile != nil {
+		if t.tile.Team == 0 && t.tile.Armies == 0 {
+			return
+		}
+		if t.tile.Team != 0 && t.tile.Team != params.boardTeam {
+			return
+		}
+	}
 
 	f := fontBig
 	if len(str) >= 3 {
