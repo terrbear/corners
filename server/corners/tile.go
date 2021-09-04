@@ -46,8 +46,8 @@ func (t *Tile) Start() {
 	}
 }
 
-func (t *Tile) ToRPCTile() *rpc.Tile {
-	return &rpc.Tile{
+func (t *Tile) ToRPCTile() rpc.Tile {
+	return rpc.Tile{
 		Armies:   t.Armies,
 		PlayerID: t.PlayerID,
 		X:        t.X,

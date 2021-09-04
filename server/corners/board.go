@@ -62,11 +62,11 @@ func (b *Board) ToRPCBoard() *rpc.Board {
 	defer b.lock.Unlock()
 
 	board := &rpc.Board{
-		Tiles: make([][]*rpc.Tile, len(b.Tiles)),
+		Tiles: make([][]rpc.Tile, len(b.Tiles)),
 	}
 
 	for x := range b.Tiles {
-		board.Tiles[x] = make([]*rpc.Tile, len(b.Tiles[x]))
+		board.Tiles[x] = make([]rpc.Tile, len(b.Tiles[x]))
 		for y := range b.Tiles[x] {
 			board.Tiles[x][y] = b.Tiles[x][y].ToRPCTile()
 		}

@@ -1,7 +1,6 @@
 package corners
 
 import (
-	"encoding/json"
 	"image"
 	"image/color"
 	"sync"
@@ -54,30 +53,27 @@ func (b *Board) runClient() {
 				continue
 			}
 
-			log.Trace("rpc message: ", string(message))
-
-			var board rpc.Board
-			err = json.Unmarshal(message, &board)
+			board, err := rpc.DeserializeBoard(message)
 			if err != nil {
 				log.WithError(err).Error("error unmarshaling board")
 				continue
 			}
 			log.Trace("board: ", board)
-			b.initBoard(board)
-			b.board = board
+			b.initBoard(*board)
+			b.board = *board
 		}
 	}()
 
 	for {
 		select {
 		case cmd := <-b.command:
-			msg, err := json.Marshal(cmd)
+			msg, err := rpc.SerializeCommand(&cmd)
 			if err != nil {
 				log.Println("couldn't marshal command: ", err)
 				continue
 			}
 			log.Trace("sending message: ", string(msg))
-			err = c.WriteMessage(websocket.TextMessage, msg)
+			err = c.WriteMessage(websocket.BinaryMessage, msg)
 			if err != nil {
 				log.Println("couldn't write command: ", err)
 				continue
@@ -140,7 +136,7 @@ func (b *Board) forEach(x, y int, f func(int, int, *Tile) error) error {
 	}
 	for col := range b.tiles {
 		for row := range b.tiles[col] {
-			b.tiles[row][col].tile = b.board.Tiles[row][col]
+			b.tiles[row][col].tile = &b.board.Tiles[row][col]
 			err := f(col, row, b.tiles[col][row])
 			if err != nil {
 				return err

@@ -7,7 +7,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -33,8 +32,7 @@ type wsMessage struct {
 }
 
 func (gc *gameChannel) processCommand(player rpc.PlayerID, message []byte) {
-	var command rpc.Command
-	err := json.Unmarshal(message, &command)
+	command, err := rpc.DeserializeCommand(message)
 	if err != nil {
 		log.Println("error unmarshalling command:", err)
 		return
@@ -48,12 +46,12 @@ func (gc *gameChannel) processCommand(player rpc.PlayerID, message []byte) {
 
 func (gc *gameChannel) boardToJSON() []byte {
 	board := gc.board.ToRPCBoard()
-	js, err := json.Marshal(board)
+	b, err := rpc.SerializeBoard(board)
 	if err != nil {
 		log.WithError(err).Error("error marshaling board")
 		return []byte{}
 	}
-	return js
+	return b
 }
 
 var games = make(map[rpc.PlayerID]*gameChannel)
