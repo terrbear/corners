@@ -80,7 +80,7 @@ func play1(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				log.Println("read:", err)
 				close(done)
-				continue
+				break
 			}
 			commands <- wsMessage{mt, message}
 		}
