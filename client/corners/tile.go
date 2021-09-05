@@ -2,7 +2,6 @@ package corners
 
 import (
 	"image/color"
-	"log"
 	"strconv"
 
 	"golang.org/x/image/font"
@@ -12,6 +11,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/examples/resources/fonts"
 	"github.com/hajimehoshi/ebiten/v2/text"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -28,7 +28,7 @@ func init() {
 
 	const dpi = 72
 	fontSmall, err = opentype.NewFace(tt, &opentype.FaceOptions{
-		Size:    24,
+		Size:    18,
 		DPI:     dpi,
 		Hinting: font.HintingFull,
 	})
@@ -36,7 +36,7 @@ func init() {
 		log.Fatal(err)
 	}
 	fontNormal, err = opentype.NewFace(tt, &opentype.FaceOptions{
-		Size:    32,
+		Size:    24,
 		DPI:     dpi,
 		Hinting: font.HintingFull,
 	})
@@ -44,7 +44,7 @@ func init() {
 		log.Fatal(err)
 	}
 	fontBig, err = opentype.NewFace(tt, &opentype.FaceOptions{
-		Size:    48,
+		Size:    36,
 		DPI:     dpi,
 		Hinting: font.HintingFull,
 	})
@@ -77,7 +77,7 @@ func NewTile(params *TileParams) *Tile {
 }
 
 const (
-	tileSize   = 80
+	tileSize   = 40
 	tileMargin = 4
 )
 
@@ -90,10 +90,6 @@ func init() {
 }
 
 func (t *Tile) bgColor(params *TileDrawParams) color.Color {
-	if params.selected {
-		return color.RGBA{0x00, 0xaf, 0x00, 0x33}
-	}
-
 	alpha := uint8(0x33)
 
 	if t.tile.Armies > 200 {
@@ -126,18 +122,33 @@ type TileDrawParams struct {
 func (t *Tile) Draw(xoffset, yoffset int, boardImage *ebiten.Image, params *TileDrawParams) {
 	i, j := xoffset, yoffset
 
+	if params.selected {
+		op := &ebiten.DrawImageOptions{}
+		x := float64(i*tileSize + (i+1)*tileMargin - tileMargin)
+		y := float64(j*tileSize + (j+1)*tileMargin - tileMargin)
+		scale := float64(tileSize+(tileMargin*2)) / tileSize
+		op.GeoM.Scale(scale, scale)
+
+		op.GeoM.Translate(float64(x), float64(y))
+		r, g, b, a := colorToScale(color.RGBA{0x00, 0xaf, 0x00, 0x33})
+		op.ColorM.Scale(r, g, b, a)
+		boardImage.DrawImage(tileImage, op)
+	} else if t.tile.Generator {
+		op := &ebiten.DrawImageOptions{}
+		x := float64(i*tileSize + (i+1)*tileMargin - tileMargin)
+		y := float64(j*tileSize + (j+1)*tileMargin - tileMargin)
+		scale := float64(tileSize+(tileMargin*2)) / tileSize
+		op.GeoM.Scale(scale, scale)
+
+		op.GeoM.Translate(float64(x), float64(y))
+		r, g, b, a := colorToScale(color.RGBA{0xa0, 0x45, 0xc5, 0x88})
+		op.ColorM.Scale(r, g, b, a)
+		boardImage.DrawImage(tileImage, op)
+	}
+
 	op := &ebiten.DrawImageOptions{}
 	x := float64(i*tileSize + (i+1)*tileMargin)
 	y := float64(j*tileSize + (j+1)*tileMargin)
-
-	if params.selected {
-		scale := float64(tileSize+(tileMargin*2)) / tileSize
-		x -= tileMargin
-		y -= tileMargin
-		op.GeoM.Scale(scale, scale)
-		//op.GeoM.Translate(float64(x*2), float64(y*2))
-		//op.GeoM.Fill(color.RGBA{0x00, 0x00, 0x00, 0xff})
-	}
 	op.GeoM.Translate(float64(x), float64(y))
 	r, g, b, a := colorToScale(t.bgColor(params))
 	op.ColorM.Scale(r, g, b, a)

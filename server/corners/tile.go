@@ -48,10 +48,11 @@ func (t *Tile) Start() {
 
 func (t *Tile) ToRPCTile() rpc.Tile {
 	return rpc.Tile{
-		Armies:   t.Armies,
-		PlayerID: t.PlayerID,
-		X:        t.X,
-		Y:        t.Y,
+		Armies:    t.Armies,
+		PlayerID:  t.PlayerID,
+		X:         t.X,
+		Y:         t.Y,
+		Generator: t.generator,
 	}
 }
 

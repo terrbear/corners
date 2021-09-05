@@ -144,11 +144,6 @@ func (b *Board) Draw(boardImage *ebiten.Image) {
 			x := i*tileSize + (i+1)*tileMargin
 			y := j*tileSize + (j+1)*tileMargin
 			cr, cg, cb, ca := colorToScale(color.NRGBA{0xee, 0xe4, 0xda, 0x59})
-			if b.selectedX == i && b.selectedY == j {
-				x *= 2
-				y *= 2
-				cr, cg, cb, ca = colorToScale(color.RGBA{0x0, 0x0, 0x0, 0x0})
-			}
 			op.GeoM.Translate(float64(x), float64(y))
 			op.ColorM.Scale(cr, cg, cb, ca)
 			boardImage.DrawImage(tileImage, op)

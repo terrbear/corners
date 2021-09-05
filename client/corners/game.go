@@ -13,8 +13,8 @@ func init() {
 }
 
 const (
-	ScreenWidth  = 1600
-	ScreenHeight = 1600
+	ScreenWidth  = 800
+	ScreenHeight = 800
 )
 
 type Game struct {

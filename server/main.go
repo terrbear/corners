@@ -149,6 +149,13 @@ func addPlayer(p rpc.PlayerID) *gameChannel {
 		pendingGame.players[p] = time.Now()
 	}
 
+	if len(pendingGame.players) == maxPlayers {
+		startGame()
+		g := pendingGame
+		pendingGame = nil
+		return g
+	}
+
 	return pendingGame
 }
 

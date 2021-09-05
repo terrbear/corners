@@ -60,7 +60,7 @@ func init() {
 	log.SetReportCaller(true)
 
 	port = parseEnvInt("PORT", 8080)
-	lobbyTimeout = parseEnvInt("LOBBY_TIMEOUT", 10)
+	lobbyTimeout = parseEnvInt("LOBBY_TIMEOUT", 30)
 
 	gh, ok := os.LookupEnv("GAME_HOST")
 	if ok {

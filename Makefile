@@ -15,6 +15,10 @@ build_server:
 lint:
 	golangci-lint run --tests=false ./...
 
+publish:
+	scp bin/linux/server ubuntu@corners.terrbear.io:
+	rsync -avr maps ubuntu@corners.terrbear.io:
+
 run_local_server:
 	LOG_LEVEL=debug LOBBY_TIMEOUT=0 go run server/main.go
 
