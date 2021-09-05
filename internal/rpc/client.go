@@ -106,7 +106,10 @@ func (r *Client) run() {
 	g.Go(func() error { return r.listen(ctx, c) })
 	g.Go(func() error { return r.talk(ctx, c) })
 
-	g.Wait()
+	err = g.Wait()
+	if err != nil {
+		log.WithError(err).Error("error in rpc client comms")
+	}
 }
 
 func (r *Client) start() {

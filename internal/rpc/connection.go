@@ -1,9 +1,11 @@
 package rpc
 
-import "net/url"
+import (
+	"net/url"
 
-const host = "corners.terrbear.io:8080"
+	"terrbear.io/corners/internal/env"
+)
 
 func ServerURL(playerID PlayerID) url.URL {
-	return url.URL{Scheme: "ws", Host: host, Path: "/play/" + string(playerID)}
+	return url.URL{Scheme: "ws", Host: env.GameHost(), Path: "/play/" + string(playerID)}
 }

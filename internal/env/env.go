@@ -11,9 +11,19 @@ import (
 var logLevel = log.InfoLevel
 var port = 8080
 var lobbyTimeout = 10
+var gameHost = "corners.terrbear.io:8080"
+var mapName = "og"
 
 func Port() int {
 	return port
+}
+
+func GameHost() string {
+	return gameHost
+}
+
+func Map() string {
+	return mapName
 }
 
 func LobbyTimeout() time.Duration {
@@ -51,4 +61,14 @@ func init() {
 
 	port = parseEnvInt("PORT", 8080)
 	lobbyTimeout = parseEnvInt("LOBBY_TIMEOUT", 10)
+
+	gh, ok := os.LookupEnv("GAME_HOST")
+	if ok {
+		gameHost = gh
+	}
+
+	m, ok := os.LookupEnv("MAP_NAME")
+	if ok {
+		mapName = m
+	}
 }

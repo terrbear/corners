@@ -1,11 +1,14 @@
 package corners
 
 import (
+	"encoding/json"
 	"math"
+	"os"
 	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"terrbear.io/corners/internal/env"
 	"terrbear.io/corners/internal/rpc"
 )
 
@@ -14,25 +17,67 @@ type Board struct {
 	lock  sync.Mutex
 }
 
-func NewBoard(playerIDs []rpc.PlayerID, size int) *Board {
-	tiles := make([][]*Tile, size)
+type Map struct {
+	Name           string
+	Size           int
+	StartingPoints [][2]int
+	Overrides      []struct {
+		XR        []int
+		YR        []int
+		X         int
+		Y         int
+		Generator bool
+		Armies    int
+	}
+}
+
+func loadMap(name string) Map {
+	m, err := os.ReadFile("maps/" + name + ".json")
+	if err != nil {
+		panic(err)
+	}
+
+	var setup Map
+	err = json.Unmarshal(m, &setup)
+	if err != nil {
+		panic(err)
+	}
+
+	return setup
+}
+
+func NewBoard(playerIDs []rpc.PlayerID) *Board {
+	m := loadMap(env.Map())
+
+	tiles := make([][]*Tile, m.Size)
 	for x := range tiles {
-		tiles[x] = make([]*Tile, size)
+		tiles[x] = make([]*Tile, m.Size)
 		for y := range tiles[x] {
 			tiles[x][y] = NewTile(&TileParams{x: x, y: y, resources: 1, playerID: rpc.NeutralPlayer})
 		}
 	}
 
-	positions := [][]int{{0, 0}, {size - 1, size - 1}, {0, size - 1}, {size - 1, 0}}
-
-	for i := range positions {
-		position := positions[i]
+	for i, position := range m.StartingPoints {
 		playerID := rpc.NeutralPlayer
 		if len(playerIDs) > i {
 			playerID = playerIDs[i]
 		}
 
-		tiles[position[0]][position[1]] = NewTile(&TileParams{playerID: playerID, generator: true, x: position[0], y: position[1]})
+		tiles[position[0]][position[1]] = NewTile(&TileParams{playerID: playerID, resources: 1, x: position[0], y: position[1]})
+	}
+
+	for _, o := range m.Overrides {
+		if len(o.XR) > 0 {
+			for x := o.XR[0]; x <= o.XR[1]; x++ {
+				for y := o.YR[0]; y <= o.YR[1]; y++ {
+					tiles[x][y].generator = o.Generator
+					tiles[x][y].Armies = o.Armies
+				}
+			}
+		} else {
+			tiles[o.X][o.Y].generator = o.Generator
+			tiles[o.X][o.Y].Armies = o.Armies
+		}
 	}
 
 	b := &Board{

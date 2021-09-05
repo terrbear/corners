@@ -106,7 +106,7 @@ func startGame() {
 	for p := range pendingGame.players {
 		players = append(players, p)
 	}
-	pendingGame.board = corners.NewBoard(players, 16)
+	pendingGame.board = corners.NewBoard(players)
 	pendingGame.board.Start()
 	close(pendingGame.ready)
 	pendingGame = nil
