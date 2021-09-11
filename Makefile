@@ -16,11 +16,14 @@ lint:
 	golangci-lint run --tests=false ./...
 
 publish:
-	scp bin/linux/server ubuntu@corners.terrbear.io:
 	rsync -avr maps ubuntu@corners.terrbear.io:
+	scp bin/linux/server ubuntu@corners.terrbear.io:
 
-run_local_server:
+run_dev_server:
 	LOG_LEVEL=debug LOBBY_TIMEOUT=0 go run server/main.go
+
+run_dev_client:
+	LOG_LEVEL=debug GAME_HOST=localhost:8080 go run client/main.go
 
 run: build
 	bin/server &

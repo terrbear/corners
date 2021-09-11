@@ -118,11 +118,11 @@ type TileDrawParams struct {
 	targeted      bool
 }
 
-// Draw draws the current tile to the given boardImage.
 func (t *Tile) Draw(xoffset, yoffset int, boardImage *ebiten.Image, params *TileDrawParams) {
 	i, j := xoffset, yoffset
 
 	if params.selected {
+		// If the tile is selected, draw it green
 		op := &ebiten.DrawImageOptions{}
 		x := float64(i*tileSize + (i+1)*tileMargin - tileMargin)
 		y := float64(j*tileSize + (j+1)*tileMargin - tileMargin)
@@ -134,6 +134,7 @@ func (t *Tile) Draw(xoffset, yoffset int, boardImage *ebiten.Image, params *Tile
 		op.ColorM.Scale(r, g, b, a)
 		boardImage.DrawImage(tileImage, op)
 	} else if t.tile.Generator {
+		// If the tile is a generator, make it purple
 		op := &ebiten.DrawImageOptions{}
 		x := float64(i*tileSize + (i+1)*tileMargin - tileMargin)
 		y := float64(j*tileSize + (j+1)*tileMargin - tileMargin)
@@ -150,6 +151,7 @@ func (t *Tile) Draw(xoffset, yoffset int, boardImage *ebiten.Image, params *Tile
 	x := float64(i*tileSize + (i+1)*tileMargin)
 	y := float64(j*tileSize + (j+1)*tileMargin)
 	op.GeoM.Translate(float64(x), float64(y))
+	boardImage.DrawImage(tileImage, op)
 	r, g, b, a := colorToScale(t.bgColor(params))
 	op.ColorM.Scale(r, g, b, a)
 	boardImage.DrawImage(tileImage, op)

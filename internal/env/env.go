@@ -3,6 +3,7 @@ package env
 import (
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -13,6 +14,7 @@ var port = 8080
 var lobbyTimeout = 10
 var gameHost = "corners.terrbear.io:8080"
 var mapName = "og"
+var minPlayers = 1
 
 func Port() int {
 	return port
@@ -24,6 +26,10 @@ func GameHost() string {
 
 func Map() string {
 	return mapName
+}
+
+func MinPlayers() int {
+	return minPlayers
 }
 
 func LobbyTimeout() time.Duration {
@@ -61,9 +67,16 @@ func init() {
 
 	port = parseEnvInt("PORT", 8080)
 	lobbyTimeout = parseEnvInt("LOBBY_TIMEOUT", 30)
+	minPlayers = parseEnvInt("MIN_PLAYERS", 1)
 
 	gh, ok := os.LookupEnv("GAME_HOST")
 	if ok {
+		split := strings.Split(gh, ":")
+		if len(split) == 2 {
+			log.Infof("starting client host=%s port=%s", split[0], split[1])
+		} else {
+			log.Infof("starting client host=%s, port=80", gh)
+		}
 		gameHost = gh
 	}
 

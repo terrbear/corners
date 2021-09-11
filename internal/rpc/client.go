@@ -12,6 +12,8 @@ import (
 )
 
 type Client struct {
+	bytesRX      int
+	bytesTX      int
 	boardUpdates chan Board
 	clientID     string
 	log          *log.Entry
@@ -28,9 +30,24 @@ func NewClient(playerID PlayerID, boardUpdates chan Board) *Client {
 		boardUpdates: boardUpdates,
 		playerID:     playerID,
 	}
+	go client.stats()
 	go client.start()
 
 	return client
+}
+
+func (r *Client) stats() {
+	t := time.NewTicker(30 * time.Second)
+	lastRX, lastTX := 0, 0
+	for {
+		deltaRX := r.bytesRX - lastRX
+		deltaTX := r.bytesTX - lastTX
+		log.WithFields(log.Fields{"total": r.bytesRX, "delta": deltaRX, "rate": float64(deltaRX) / 30}).Debug("Bytes rx")
+		log.WithFields(log.Fields{"total": r.bytesTX, "delta": deltaTX, "rate": float64(deltaTX) / 30}).Debug("Bytes tx")
+		lastRX = r.bytesRX
+		lastTX = r.bytesTX
+		<-t.C
+	}
 }
 
 func (r *Client) SendCommand(command Command) {
@@ -51,6 +68,7 @@ func (r *Client) listen(ctx context.Context, c *websocket.Conn) error {
 			continue
 		}
 		if mt == websocket.BinaryMessage || mt == websocket.TextMessage {
+			r.bytesRX += len(message)
 			board, err := DeserializeBoard(message)
 			if err != nil {
 				log.WithError(err).Error("error unmarshaling board")
@@ -74,6 +92,7 @@ func (r *Client) talk(ctx context.Context, c *websocket.Conn) error {
 		case cmd := <-r.commands:
 			log.Debug("sending command: ", cmd)
 			msg, err := SerializeCommand(&cmd)
+			r.bytesTX += len(msg)
 			if err != nil {
 				log.Println("couldn't marshal command: ", err)
 				continue

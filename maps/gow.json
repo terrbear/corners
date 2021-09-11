@@ -1,0 +1,52 @@
+{
+  "name": "OG",
+  "size": 16,
+  "startingPoints": [
+    [2, 2],
+    [13, 13],
+    [13, 2],
+    [2, 13]
+  ],
+  "overrides": [
+    {
+      "x": 2,
+      "y": 2,
+      "generator": true,
+      "armies": 10
+    },
+    {
+      "x": 2,
+      "y": 13,
+      "generator": true,
+      "armies": 10
+    },
+    {
+      "x": 13,
+      "y": 2,
+      "generator": true,
+      "armies": 10
+    },
+    {
+      "x": 13,
+      "y": 13,
+      "generator": true,
+      "armies": 10
+    },
+    {
+      "xr": [6, 9],
+      "yr": [0, 15],
+      "armies": 100
+    },
+    {
+      "xr": [0, 15],
+      "yr": [6, 9],
+      "armies": 100
+    },
+    {
+      "xr": [7, 8],
+      "yr": [7, 8],
+      "armies": 100,
+      "generator": true
+    }
+  ]
+}

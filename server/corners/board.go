@@ -198,9 +198,6 @@ func (b *Board) runTransfer(t *Transfer) {
 }
 
 func (b *Board) Transfer(playerID rpc.PlayerID, source, dest *Tile) {
-	b.lock.Lock()
-	defer b.lock.Unlock()
-
 	if source == dest {
 		return
 	}

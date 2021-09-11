@@ -22,7 +22,6 @@ import (
 
 const (
 	maxPlayers = 4
-	minPlayers = 1
 )
 
 var lock sync.Mutex
@@ -40,6 +39,13 @@ func (gc *gameChannel) processCommand(player rpc.PlayerID, message []byte) {
 	command, err := rpc.DeserializeCommand(message)
 	if err != nil {
 		log.Println("error unmarshalling command:", err)
+		return
+	}
+
+	size := len(gc.board.Tiles)
+	if command.SelectedX < 0 || command.SelectedX >= size ||
+		command.SelectedY < 0 || command.SelectedY >= size {
+		log.Warn("bad command given: ", command)
 		return
 	}
 
@@ -72,29 +78,12 @@ func NewGameChannel() *gameChannel {
 	gc := gameChannel{
 		players: make(map[rpc.PlayerID]time.Time),
 		ready:   make(chan bool),
-		pings:   make(chan rpc.PlayerID, maxPlayers),
 	}
-
-	go gc.loop()
 
 	return &gc
 }
 
-func (gc *gameChannel) loop() {
-	for {
-		select {
-		case p := <-gc.pings:
-			log.WithField("playerID", p).Debug("got ping")
-			gc.players[p] = time.Now().Add(30 * time.Second)
-		}
-	}
-}
-
 var players = make(chan int)
-
-func (gc *gameChannel) ping(p rpc.PlayerID) {
-	gc.pings <- p
-}
 
 // Obviously this is dirty; only call this if you're holding the lock
 func startGame() {
@@ -124,7 +113,7 @@ func timer() {
 		if pendingGame != nil {
 			log.Debug("checking pending game; players len = ", len(pendingGame.players))
 		}
-		if pendingGame != nil && len(pendingGame.players) >= minPlayers {
+		if pendingGame != nil && len(pendingGame.players) >= env.MinPlayers() {
 			startGame()
 		}
 		lock.Unlock()
@@ -180,11 +169,6 @@ func play(w http.ResponseWriter, r *http.Request) {
 
 	log.Debugf("player added to game with id %s; waiting for game to start\n", id)
 	<-game.ready
-
-	c.SetPingHandler(func(appData string) error {
-		game.ping(id)
-		return nil
-	})
 
 	go func() {
 		for {

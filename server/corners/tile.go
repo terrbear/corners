@@ -33,7 +33,11 @@ type TileParams struct {
 func (t *Tile) generate() {
 	ticker := time.NewTicker(2 * time.Second)
 	for {
-		t.Armies += (t.resources / 6) + 3
+		t.lock.Lock()
+		if t.Armies < 100 {
+			t.Armies += (t.resources / 6) + 3
+		}
+		t.lock.Unlock()
 		<-ticker.C
 	}
 }
