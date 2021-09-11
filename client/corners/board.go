@@ -7,7 +7,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/text"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/image/font"
 	"terrbear.io/corners/internal/rpc"
 )
 
@@ -35,6 +37,11 @@ func (b *Board) processBoardUpdates() {
 		b.lock.Lock()
 		b.initBoard(board)
 		b.board = board
+		if board.Winner != nil {
+			b.lock.Unlock()
+			log.Info("WINNER FOUND: ", *board.Winner)
+			return
+		}
 		b.lock.Unlock()
 	}
 }
@@ -161,5 +168,19 @@ func (b *Board) Draw(boardImage *ebiten.Image) {
 		if err != nil {
 			log.WithError(err).Error("couldn't draw board")
 		}
+	}
+
+	if b.board.Winner != nil {
+		// TODO center this nicely
+		boardSize, _ := b.Size()
+		str := "          GAME OVER        \n"
+		restart := "press spacebar to start again"
+		c := color.RGBA{0xff, 0x0, 0x0, 0xff}
+		bound, _ := font.BoundString(fontBig, restart)
+		w := (bound.Max.X - bound.Min.X).Ceil()
+		h := (bound.Max.Y - bound.Min.Y).Ceil()
+		x := float64((boardSize - w) / 2)
+		y := float64((boardSize-h)/2 + h)
+		text.Draw(boardImage, str+restart, fontBig, int(x), int(y), c)
 	}
 }

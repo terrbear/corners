@@ -13,7 +13,7 @@ var logLevel = log.InfoLevel
 var port = 8080
 var lobbyTimeout = 10
 var gameHost = "corners.terrbear.io:8080"
-var mapName = "og"
+var mapName = "maps/og"
 var minPlayers = 1
 
 func Port() int {

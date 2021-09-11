@@ -23,7 +23,7 @@ type Game struct {
 	boardImage *ebiten.Image
 }
 
-func NewGame(p1 bool) (*Game, error) {
+func NewGame() (*Game, error) {
 	g := &Game{
 		input: NewInput(),
 	}
@@ -39,6 +39,9 @@ func (g *Game) Update() error {
 	g.input.Update()
 	if err := g.board.Update(g.input); err != nil {
 		return err
+	}
+	if g.board.board.Winner != nil && g.input.spacebar {
+		g.board = NewBoard()
 	}
 	return nil
 }
