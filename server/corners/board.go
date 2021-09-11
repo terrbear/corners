@@ -100,7 +100,28 @@ func (b *Board) Start() error {
 	})
 }
 
-func (b *Board) ToRPCBoard() *rpc.Board {
+func (b *Board) isVisible(x, y int, playerID rpc.PlayerID) bool {
+	t := b.Tiles[x][y]
+	if t.PlayerID == playerID {
+		return true
+	}
+	leftX := int(math.Max(float64(x-1), 0))
+	rightX := int(math.Min(float64(x+1), float64(len(b.Tiles)-1)))
+	topY := int(math.Max(float64(y-1), 0))
+	bottomY := int(math.Min(float64(y+1), float64(len(b.Tiles[0])-1)))
+
+	// You can see the eight squares around you, so check each one
+	return b.Tiles[leftX][y].PlayerID == playerID ||
+		b.Tiles[leftX][topY].PlayerID == playerID ||
+		b.Tiles[leftX][bottomY].PlayerID == playerID ||
+		b.Tiles[x][topY].PlayerID == playerID ||
+		b.Tiles[x][bottomY].PlayerID == playerID ||
+		b.Tiles[rightX][y].PlayerID == playerID ||
+		b.Tiles[rightX][topY].PlayerID == playerID ||
+		b.Tiles[rightX][bottomY].PlayerID == playerID
+}
+
+func (b *Board) ToRPCBoard(player rpc.PlayerID) *rpc.Board {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
@@ -112,7 +133,7 @@ func (b *Board) ToRPCBoard() *rpc.Board {
 	for x := range b.Tiles {
 		board.Tiles[x] = make([]rpc.Tile, len(b.Tiles[x]))
 		for y := range b.Tiles[x] {
-			board.Tiles[x][y] = b.Tiles[x][y].ToRPCTile()
+			board.Tiles[x][y] = b.Tiles[x][y].ToRPCTile(b.isVisible(x, y, player))
 		}
 	}
 

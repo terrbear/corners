@@ -7,4 +7,5 @@ type Tile struct {
 	X         int      `json:"x"`
 	Y         int      `json:"y"`
 	Generator bool     `json:"generator"`
+	Visible   bool     `json:"visible"`
 }
