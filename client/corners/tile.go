@@ -76,35 +76,18 @@ type TileDrawParams struct {
 	targeted      bool
 }
 
-func (t *Tile) Draw(xoffset, yoffset int, boardImage *ebiten.Image, params *TileDrawParams) {
-	i, j := xoffset, yoffset
+func (t *Tile) drawFog(i, j int, boardImage *ebiten.Image) {
+	op := &ebiten.DrawImageOptions{}
+	x := float64(i*tileSize + (i+1)*tileMargin)
+	y := float64(j*tileSize + (j+1)*tileMargin)
+	op.GeoM.Translate(float64(x), float64(y))
+	boardImage.DrawImage(tileImage, op)
+	r, g, b, a := colorToScale(color.RGBA{0x0, 0x0, 0x0, 0x6a})
+	op.ColorM.Scale(r, g, b, a)
+	boardImage.DrawImage(tileImage, op)
+}
 
-	if params.selected {
-		// If the tile is selected, draw it green
-		op := &ebiten.DrawImageOptions{}
-		x := float64(i*tileSize + (i+1)*tileMargin - tileMargin)
-		y := float64(j*tileSize + (j+1)*tileMargin - tileMargin)
-		scale := float64(tileSize+(tileMargin*2)) / tileSize
-		op.GeoM.Scale(scale, scale)
-
-		op.GeoM.Translate(float64(x), float64(y))
-		r, g, b, a := colorToScale(color.RGBA{0x00, 0xaf, 0x00, 0x33})
-		op.ColorM.Scale(r, g, b, a)
-		boardImage.DrawImage(tileImage, op)
-	} else if t.tile.Generator {
-		// If the tile is a generator, make it purple
-		op := &ebiten.DrawImageOptions{}
-		x := float64(i*tileSize + (i+1)*tileMargin - tileMargin)
-		y := float64(j*tileSize + (j+1)*tileMargin - tileMargin)
-		scale := float64(tileSize+(tileMargin*2)) / tileSize
-		op.GeoM.Scale(scale, scale)
-
-		op.GeoM.Translate(float64(x), float64(y))
-		r, g, b, a := colorToScale(color.RGBA{0xa0, 0x45, 0xc5, 0x88})
-		op.ColorM.Scale(r, g, b, a)
-		boardImage.DrawImage(tileImage, op)
-	}
-
+func (t *Tile) drawDetailed(i, j int, boardImage *ebiten.Image, params *TileDrawParams) {
 	op := &ebiten.DrawImageOptions{}
 	x := float64(i*tileSize + (i+1)*tileMargin)
 	y := float64(j*tileSize + (j+1)*tileMargin)
@@ -146,4 +129,40 @@ func (t *Tile) Draw(xoffset, yoffset int, boardImage *ebiten.Image, params *Tile
 		c = color.RGBA{0x00, 0x00, 0x00, 0xff}
 	}
 	text.Draw(boardImage, str, f, int(x), int(y), c)
+}
+
+func (t *Tile) Draw(xoffset, yoffset int, boardImage *ebiten.Image, params *TileDrawParams) {
+	i, j := xoffset, yoffset
+
+	if params.selected {
+		// If the tile is selected, draw it green
+		op := &ebiten.DrawImageOptions{}
+		x := float64(i*tileSize + (i+1)*tileMargin - tileMargin)
+		y := float64(j*tileSize + (j+1)*tileMargin - tileMargin)
+		scale := float64(tileSize+(tileMargin*2)) / tileSize
+		op.GeoM.Scale(scale, scale)
+
+		op.GeoM.Translate(float64(x), float64(y))
+		r, g, b, a := colorToScale(color.RGBA{0x00, 0xaf, 0x00, 0x33})
+		op.ColorM.Scale(r, g, b, a)
+		boardImage.DrawImage(tileImage, op)
+	} else if t.tile.Generator {
+		// If the tile is a generator, make it purple
+		op := &ebiten.DrawImageOptions{}
+		x := float64(i*tileSize + (i+1)*tileMargin - tileMargin)
+		y := float64(j*tileSize + (j+1)*tileMargin - tileMargin)
+		scale := float64(tileSize+(tileMargin*2)) / tileSize
+		op.GeoM.Scale(scale, scale)
+
+		op.GeoM.Translate(float64(x), float64(y))
+		r, g, b, a := colorToScale(color.RGBA{0xa0, 0x45, 0xc5, 0x88})
+		op.ColorM.Scale(r, g, b, a)
+		boardImage.DrawImage(tileImage, op)
+	}
+
+	if t.tile.Visible {
+		t.drawDetailed(i, j, boardImage, params)
+	} else {
+		t.drawFog(i, j, boardImage)
+	}
 }

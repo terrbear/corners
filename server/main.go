@@ -47,8 +47,8 @@ func (gc *gameChannel) processCommand(player rpc.PlayerID, message []byte) {
 		gc.board.Tiles[command.TargetX][command.TargetY])
 }
 
-func (gc *gameChannel) serializedBoard() []byte {
-	board := gc.board.ToRPCBoard()
+func (gc *gameChannel) serializedBoard(p rpc.PlayerID) []byte {
+	board := gc.board.ToRPCBoard(p)
 	b, err := rpc.SerializeBoard(board)
 	if err != nil {
 		log.WithError(err).Error("error marshaling board")
@@ -62,7 +62,6 @@ var games = make(map[rpc.PlayerID]*gameChannel)
 type gameChannel struct {
 	players map[rpc.PlayerID]time.Time
 	ready   chan bool
-	pings   chan rpc.PlayerID
 	board   *corners.Board
 }
 
@@ -86,7 +85,11 @@ func startGame() {
 		players = append(players, p)
 	}
 	pendingGame.board = corners.NewBoard(env.Map(), players)
-	pendingGame.board.Start()
+	err := pendingGame.board.Start()
+	if err != nil {
+		log.WithError(err).Error("error starting game")
+	}
+
 	close(pendingGame.ready)
 	pendingGame = nil
 }
@@ -181,7 +184,7 @@ func play(w http.ResponseWriter, r *http.Request) {
 		case <-done:
 			return
 		case <-t.C:
-			err = c.WriteMessage(websocket.BinaryMessage, game.serializedBoard())
+			err = c.WriteMessage(websocket.BinaryMessage, game.serializedBoard(id))
 			if err != nil {
 				log.Println("write:", err)
 			}

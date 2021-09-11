@@ -51,13 +51,15 @@ func (t *Tile) Start() {
 	}
 }
 
-func (t *Tile) ToRPCTile() rpc.Tile {
+func (t *Tile) ToRPCTile(visible bool) rpc.Tile {
+	// TODO could hide stuff here if we wanted
 	return rpc.Tile{
 		Armies:    t.Armies,
 		PlayerID:  t.PlayerID,
 		X:         t.X,
 		Y:         t.Y,
 		Generator: t.generator,
+		Visible:   visible,
 	}
 }
 
