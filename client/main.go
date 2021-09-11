@@ -2,14 +2,13 @@ package main
 
 import (
 	"log"
-	"os"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"terrbear.io/corners/client/corners"
 )
 
 func main() {
-	game, err := corners.NewGame(os.Getenv("P1") == "yes")
+	game, err := corners.NewGame()
 	if err != nil {
 		log.Fatal(err)
 	}

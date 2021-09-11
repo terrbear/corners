@@ -1,10 +1,13 @@
 package rpc
 
-import "github.com/kelindar/binary"
+import (
+	"encoding/json"
+)
 
 // Board represents the game board.
 type Board struct {
-	Tiles [][]Tile `json:"tiles"`
+	Tiles  [][]Tile  `json:"tiles"`
+	Winner *PlayerID `json:"winner,omitempty"`
 }
 
 type PlayerID string
@@ -12,12 +15,12 @@ type PlayerID string
 const NeutralPlayer PlayerID = "neutral"
 
 func SerializeBoard(b *Board) ([]byte, error) {
-	return binary.Marshal(b)
+	return json.Marshal(b)
 }
 
 func DeserializeBoard(b []byte) (*Board, error) {
 	var board Board
-	if err := binary.Unmarshal(b, &board); err != nil {
+	if err := json.Unmarshal(b, &board); err != nil {
 		return nil, err
 	}
 	return &board, nil

@@ -4,6 +4,8 @@ import (
 	"image"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -24,8 +26,9 @@ type MouseInput struct {
 
 // Input represents the current key states.
 type Input struct {
-	left  MouseInput
-	right MouseInput
+	left     MouseInput
+	right    MouseInput
+	spacebar bool
 }
 
 // NewInput generates a new Input object.
@@ -85,5 +88,9 @@ func (i *Input) Update() {
 		}
 	case mouseStateUp:
 		i.right.state = mouseStateNone
+	}
+
+	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
+		i.spacebar = true
 	}
 }

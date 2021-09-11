@@ -8,13 +8,14 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"terrbear.io/corners/internal/env"
 	"terrbear.io/corners/internal/rpc"
 )
 
 type Board struct {
-	Tiles [][]*Tile
-	lock  sync.Mutex
+	Tiles  [][]*Tile
+	Winner *rpc.PlayerID
+	lock   sync.Mutex
+	done   chan bool
 }
 
 type Map struct {
@@ -32,7 +33,7 @@ type Map struct {
 }
 
 func loadMap(name string) Map {
-	m, err := os.ReadFile("maps/" + name + ".json")
+	m, err := os.ReadFile(name + ".json")
 	if err != nil {
 		panic(err)
 	}
@@ -46,8 +47,10 @@ func loadMap(name string) Map {
 	return setup
 }
 
-func NewBoard(playerIDs []rpc.PlayerID) *Board {
-	m := loadMap(env.Map())
+// NewBoard loads a board configuration from a given mapname and starts with the given playerIDs. Will
+// start ticking immediately, but the tiles only start ticking once you call Start(). TODO is that necessary?
+func NewBoard(mapName string, playerIDs []rpc.PlayerID) *Board {
+	m := loadMap(mapName)
 
 	tiles := make([][]*Tile, m.Size)
 	for x := range tiles {
@@ -82,15 +85,10 @@ func NewBoard(playerIDs []rpc.PlayerID) *Board {
 
 	b := &Board{
 		Tiles: tiles,
+		done:  make(chan bool, 1),
 	}
 
-	go func() {
-		t := time.NewTicker(time.Second)
-		for {
-			b.Tick()
-			<-t.C
-		}
-	}()
+	go b.runTicker()
 
 	return b
 }
@@ -107,7 +105,8 @@ func (b *Board) ToRPCBoard() *rpc.Board {
 	defer b.lock.Unlock()
 
 	board := &rpc.Board{
-		Tiles: make([][]rpc.Tile, len(b.Tiles)),
+		Tiles:  make([][]rpc.Tile, len(b.Tiles)),
+		Winner: b.Winner,
 	}
 
 	for x := range b.Tiles {
@@ -223,7 +222,19 @@ func (b *Board) Transfer(playerID rpc.PlayerID, source, dest *Tile) {
 	go b.runTransfer(&t)
 }
 
-func (b *Board) Tick() {
+func (b *Board) runTicker() {
+	t := time.NewTicker(time.Second)
+	for {
+		b.tick()
+		select {
+		case <-t.C:
+		case <-b.done:
+			return
+		}
+	}
+}
+
+func (b *Board) tick() {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
@@ -237,12 +248,25 @@ func (b *Board) Tick() {
 		log.WithError(err).Error("error adding resources")
 	}
 
+	generators := make(map[rpc.PlayerID]int)
 	err = b.forEach(0, 0, func(x, y int, t *Tile) error {
-		if t.generator && t.PlayerID != rpc.NeutralPlayer {
-			t.resources = resources[t.PlayerID]
+		if t.generator {
+			generators[t.PlayerID]++
+			if t.PlayerID != rpc.NeutralPlayer {
+				t.resources = resources[t.PlayerID]
+			}
 		}
 		return nil
 	})
+
+	if len(generators) == 1 {
+		// Only one player controls the generators; gg
+		for w := range generators {
+			b.Winner = &w
+			b.done <- true
+		}
+	}
+
 	if err != nil {
 		log.WithError(err).Error("error adding resources to generators")
 	}

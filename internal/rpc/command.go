@@ -1,6 +1,6 @@
 package rpc
 
-import "github.com/kelindar/binary"
+import "encoding/json"
 
 type Command struct {
 	SelectedX int `json:"selectedX"`
@@ -10,12 +10,12 @@ type Command struct {
 }
 
 func SerializeCommand(b *Command) ([]byte, error) {
-	return binary.Marshal(b)
+	return json.Marshal(b)
 }
 
 func DeserializeCommand(b []byte) (*Command, error) {
 	var command Command
-	if err := binary.Unmarshal(b, &command); err != nil {
+	if err := json.Unmarshal(b, &command); err != nil {
 		return nil, err
 	}
 	return &command, nil

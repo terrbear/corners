@@ -1,9 +1,3 @@
-// Copyright 2015 The Gorilla WebSocket Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
-// +build ignore
-
 package main
 
 import (
@@ -25,8 +19,6 @@ const (
 )
 
 var lock sync.Mutex
-
-var ready = make(chan bool)
 
 var upgrader = websocket.Upgrader{} // use default options
 
@@ -83,8 +75,6 @@ func NewGameChannel() *gameChannel {
 	return &gc
 }
 
-var players = make(chan int)
-
 // Obviously this is dirty; only call this if you're holding the lock
 func startGame() {
 	for p := range pendingGame.players {
@@ -95,7 +85,7 @@ func startGame() {
 	for p := range pendingGame.players {
 		players = append(players, p)
 	}
-	pendingGame.board = corners.NewBoard(players)
+	pendingGame.board = corners.NewBoard(env.Map(), players)
 	pendingGame.board.Start()
 	close(pendingGame.ready)
 	pendingGame = nil

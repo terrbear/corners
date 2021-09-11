@@ -43,6 +43,7 @@ func (t *Tile) generate() {
 }
 
 func (t *Tile) Start() {
+	// TODO this probably ought to be done from ticks instead of its own thread so we can clean up easily?
 	if t.generator {
 		t.start.Do(func() {
 			go t.generate()

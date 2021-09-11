@@ -12,6 +12,9 @@ build_server:
 	go build -o bin/server server/main.go
 	GOOS=linux CGO_ENABLED=0 go build -o bin/linux/server server/main.go
 
+test:
+	go test -v ./...
+
 lint:
 	golangci-lint run --tests=false ./...
 
