@@ -1,7 +1,5 @@
 package rpc
 
-import "encoding/json"
-
 type Command struct {
 	SelectedX int `json:"selectedX"`
 	SelectedY int `json:"selectedY"`
@@ -10,12 +8,12 @@ type Command struct {
 }
 
 func SerializeCommand(b *Command) ([]byte, error) {
-	return json.Marshal(b)
+	return serialize(b)
 }
 
 func DeserializeCommand(b []byte) (*Command, error) {
 	var command Command
-	if err := json.Unmarshal(b, &command); err != nil {
+	if err := deserialize(b, &command); err != nil {
 		return nil, err
 	}
 	return &command, nil
