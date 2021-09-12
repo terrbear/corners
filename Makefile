@@ -1,4 +1,5 @@
 GO ?=go
+GO_TEST ?=${GO}
 GO_SERVER ?=${GO}
 GO_CLIENT ?=${GO}
 
@@ -16,7 +17,7 @@ build_server:
 	GOOS=linux CGO_ENABLED=0 go build -o bin/linux/server server/main.go
 
 test:
-	go test -v ./...
+	${GO_TEST} test -v ./...
 
 lint:
 	golangci-lint run --tests=false ./...

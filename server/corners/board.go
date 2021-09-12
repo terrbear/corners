@@ -18,21 +18,36 @@ type Board struct {
 	done   chan bool
 }
 
+type MapOverride struct {
+	XR        []int
+	YR        []int
+	X         int
+	Y         int
+	Generator bool
+	Armies    int
+}
+
 type Map struct {
 	Name           string
 	Size           int
 	StartingPoints [][2]int
-	Overrides      []struct {
-		XR        []int
-		YR        []int
-		X         int
-		Y         int
-		Generator bool
-		Armies    int
-	}
+	Overrides      []MapOverride
 }
 
 func loadMap(name string) Map {
+	if name == "random" {
+		return GenerateRandomMap(Options{
+			startingPoints: [][2]int{
+				{02, 02},
+				{13, 13},
+				{13, 02},
+				{02, 13},
+			},
+			numberOfGenerators: 0,
+			numberOfWalls:      0,
+		})
+	}
+
 	m, err := os.ReadFile(name + ".json")
 	if err != nil {
 		panic(err)
