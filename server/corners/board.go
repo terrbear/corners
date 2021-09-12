@@ -35,6 +35,19 @@ type Map struct {
 }
 
 func loadMap(name string) Map {
+	if name == "random" {
+		return GenerateRandomMap(Options{
+			startingPoints: [][2]int{
+				{02, 02},
+				{13, 13},
+				{13, 02},
+				{02, 13},
+			},
+			numberOfGenerators: 0,
+			numberOfWalls:      0,
+		})
+	}
+
 	m, err := os.ReadFile(name + ".json")
 	if err != nil {
 		panic(err)
