@@ -126,14 +126,14 @@ func (b *Board) ToRPCBoard(player rpc.PlayerID) *rpc.Board {
 	defer b.lock.Unlock()
 
 	board := &rpc.Board{
-		Tiles:  make([][]rpc.Tile, len(b.Tiles)),
+		Size:   len(b.Tiles),
+		Tiles:  make([]rpc.Tile, len(b.Tiles)*len(b.Tiles[0])),
 		Winner: b.Winner,
 	}
 
 	for x := range b.Tiles {
-		board.Tiles[x] = make([]rpc.Tile, len(b.Tiles[x]))
 		for y := range b.Tiles[x] {
-			board.Tiles[x][y] = b.Tiles[x][y].ToRPCTile(b.isVisible(x, y, player))
+			board.Tiles = append(board.Tiles, b.Tiles[x][y].ToRPCTile(b.isVisible(x, y, player)))
 		}
 	}
 

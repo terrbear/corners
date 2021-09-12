@@ -2,7 +2,8 @@ package rpc
 
 // Board represents the game board.
 type Board struct {
-	Tiles  [][]Tile  `json:"tiles"`
+	Size   int       `json:"size"`
+	Tiles  []Tile    `json:"tiles"`
 	Winner *PlayerID `json:"winner,omitempty"`
 }
 
@@ -20,4 +21,25 @@ func DeserializeBoard(b []byte) (*Board, error) {
 		return nil, err
 	}
 	return &board, nil
+}
+
+func (b *Board) Diff(other *Board) *Board {
+	if other == nil {
+		return b
+	}
+
+	diff := Board{
+		Winner: b.Winner,
+	}
+
+	for i, t := range b.Tiles {
+		hasChanged := other.Tiles[i] != t
+		visibilityChanged := t.Visible != other.Tiles[i].Visible
+
+		if (t.Visible && hasChanged) || visibilityChanged {
+			diff.Tiles = append(diff.Tiles, t)
+		}
+	}
+
+	return &diff
 }

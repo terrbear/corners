@@ -40,7 +40,7 @@ func (g *Game) Update() error {
 	if err := g.board.Update(g.input); err != nil {
 		return err
 	}
-	if g.board.board.Winner != nil && g.input.spacebar {
+	if g.board.Winner != nil && g.input.spacebar {
 		g.board = NewBoard()
 	}
 	return nil
