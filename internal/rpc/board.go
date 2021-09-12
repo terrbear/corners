@@ -28,8 +28,10 @@ func (b *Board) Diff(other *Board) *Board {
 		return b
 	}
 
-	diff := Board{
-		Winner: b.Winner,
+	diff := Board{}
+
+	if other.Winner != nil {
+		diff.Winner = other.Winner
 	}
 
 	for i, t := range b.Tiles {

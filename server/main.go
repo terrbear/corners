@@ -189,9 +189,11 @@ func play(w http.ResponseWriter, r *http.Request) {
 			changes := board.Diff(oldBoard)
 			oldBoard = board
 
-			err = c.WriteMessage(websocket.BinaryMessage, game.serializedBoard(changes))
-			if err != nil {
-				log.Println("write:", err)
+			if len(changes.Tiles) > 0 || changes.Winner != nil {
+				err = c.WriteMessage(websocket.BinaryMessage, game.serializedBoard(changes))
+				if err != nil {
+					log.Println("write:", err)
+				}
 			}
 		}
 	}
