@@ -18,18 +18,20 @@ type Board struct {
 	done   chan bool
 }
 
+type MapOverride struct {
+	XR        []int
+	YR        []int
+	X         int
+	Y         int
+	Generator bool
+	Armies    int
+}
+
 type Map struct {
 	Name           string
 	Size           int
 	StartingPoints [][2]int
-	Overrides      []struct {
-		XR        []int
-		YR        []int
-		X         int
-		Y         int
-		Generator bool
-		Armies    int
-	}
+	Overrides      []MapOverride
 }
 
 func loadMap(name string) Map {
