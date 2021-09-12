@@ -1,5 +1,8 @@
+GO ?=go
+GO_SERVER ?=${GO}
+GO_CLIENT ?=${GO}
 
-build: build_client build_server 
+build: build_client build_server
 
 clean:
 	rm -rf bin
@@ -23,10 +26,10 @@ publish:
 	scp bin/linux/server ubuntu@corners.terrbear.io:
 
 run_dev_server:
-	LOG_LEVEL=debug LOBBY_TIMEOUT=0 go run server/main.go
+	LOG_LEVEL=debug LOBBY_TIMEOUT=0 ${GO_SERVER} run server/main.go
 
 run_dev_client:
-	LOG_LEVEL=debug GAME_HOST=localhost:8080 go run client/main.go
+	LOG_LEVEL=debug GAME_HOST=localhost:8080 ${GO_CLIENT} run client/main.go
 
 run: build
 	bin/server &
