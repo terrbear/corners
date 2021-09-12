@@ -28,37 +28,41 @@ type Board struct {
 	lock     sync.Mutex
 
 	client       *rpc.Client
+	Winner       *rpc.PlayerID
 	boardUpdates chan rpc.Board
-	board        rpc.Board
 }
 
 func (b *Board) processBoardUpdates() {
 	for board := range b.boardUpdates {
 		b.lock.Lock()
 		b.initBoard(board)
-		b.board = board
 		if board.Winner != nil {
+			b.Winner = board.Winner
 			b.lock.Unlock()
 			log.Info("WINNER FOUND: ", *board.Winner)
 			return
 		}
+		for _, t := range board.Tiles {
+			b.tiles[t.X][t.Y].tile = t
+		}
+
 		b.lock.Unlock()
 	}
 }
 
 func (b *Board) initBoard(board rpc.Board) {
 	b.init.Do(func() {
-		log.Debug("initializing board with size: ", len(board.Tiles))
-		tiles := make([][]*Tile, len(board.Tiles))
+		log.Debug("initializing board with size: ", board.Size)
+		tiles := make([][]*Tile, board.Size)
 		for x := range tiles {
-			tiles[x] = make([]*Tile, len(board.Tiles))
+			tiles[x] = make([]*Tile, board.Size)
 			for y := range tiles[x] {
 				tiles[x][y] = NewTile(&TileParams{x: x, y: y, resources: 1})
 			}
 		}
 
 		b.tiles = tiles
-		b.size = len(board.Tiles)
+		b.size = board.Size
 	})
 }
 
@@ -89,12 +93,11 @@ func (b *Board) translate(mouse *image.Point) (int, int) {
 }
 
 func (b *Board) forEach(x, y int, f func(int, int, *Tile) error) error {
-	if len(b.board.Tiles) == 0 {
+	if len(b.tiles) == 0 {
 		return nil
 	}
 	for col := range b.tiles {
 		for row := range b.tiles[col] {
-			b.tiles[row][col].tile = b.board.Tiles[row][col]
 			err := f(col, row, b.tiles[col][row])
 			if err != nil {
 				return err
@@ -170,7 +173,7 @@ func (b *Board) Draw(boardImage *ebiten.Image) {
 		}
 	}
 
-	if b.board.Winner != nil {
+	if b.Winner != nil {
 		// TODO center this nicely
 		boardSize, _ := b.Size()
 		str := "          GAME OVER        \n"
