@@ -18,6 +18,48 @@ type Board struct {
 	done   chan bool
 }
 
+func (b *Board) isInBounds(point rpc.Point) bool {
+	if point.X < 0 || point.Y < 0 {
+		return false
+	}
+	if point.X >= len(b.Tiles) || point.Y >= len(b.Tiles) {
+		return false
+	}
+	return true
+}
+
+func (b *Board) tileAt(point rpc.Point) *Tile {
+	return b.Tiles[point.X][point.Y]
+}
+
+func (b *Board) TileNeighbours(tile *Tile) []*Tile {
+	var neighbours []*Tile
+	currentPoint := rpc.Point{tile.X, tile.Y}
+
+	for _, point := range []rpc.Point{
+		currentPoint.Offset(+0, -1),
+		currentPoint.Offset(-1, +0),
+		currentPoint.Offset(+1, +0),
+		currentPoint.Offset(+0, +1),
+	} {
+		if b.isInBounds(point) {
+			neighbours = append(neighbours, b.tileAt(point))
+		}
+	}
+
+	/*
+		if object == "generator" {
+			tt.setAt(point.Offset(+0, -1), "claimed")
+			tt.setAt(point.Offset(-1, +0), "claimed")
+
+			tt.setAt(point.Offset(+1, +0), "claimed")
+			tt.setAt(point.Offset(+0, +1), "claimed")
+		}
+	 */
+
+	return neighbours
+}
+
 type Map struct {
 	Name           string
 	Size           int
@@ -168,6 +210,19 @@ func movementVector(from, to *Tile) (int, int) {
 	return 0, 0
 }
 
+func movementVector2(from, to *Tile, board *Board) (int, int) {
+	point, _ := FindPath(from, to, board)
+
+	log.Debugf("Moving from (%d, %d) to (%d, %d)",
+		from.X, from.Y,
+		point.X, point.Y,
+	)
+
+	x2, y2 := point.Values()
+
+	return x2 - from.X, y2 - from.Y
+}
+
 type Transfer struct {
 	armies int
 	from   *Tile
@@ -185,7 +240,7 @@ func (b *Board) runTransfer(t *Transfer) {
 		if t.armies <= 1 {
 			return
 		}
-		x, y := movementVector(t.from, t.to)
+		x, y := movementVector2(t.from, t.to, b)
 		if x == 0 && y == 0 {
 			return
 		}

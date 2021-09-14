@@ -42,6 +42,12 @@ func (t *Tile) generate() {
 	}
 }
 
+func (t *Tile) Distance(to *Tile) float64 {
+	point := rpc.Point{t.X, t.Y}
+
+	return point.Distance(&rpc.Point{to.X, to.Y})
+}
+
 func (t *Tile) Start() {
 	// TODO this probably ought to be done from ticks instead of its own thread so we can clean up easily?
 	if t.generator {

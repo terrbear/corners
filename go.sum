@@ -1,4 +1,6 @@
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
+github.com/beefsack/go-astar v0.0.0-20200827232313-4ecf9e304482 h1:p4g4uok3+r6Tg6fxXEQUAcMAX/WdK6WhkQW9s0jaT7k=
+github.com/beefsack/go-astar v0.0.0-20200827232313-4ecf9e304482/go.mod h1:Cu3t5VeqE8kXjUBeNXWQprfuaP5UCIc5ggGjgMx9KFc=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/go-gl/glfw/v3.3/glfw v0.0.0-20210727001814-0db043d8d5be h1:vEIVIuBApEBQTEJt19GfhoU+zFSV+sNTa9E9FdnRYfk=
@@ -20,8 +22,6 @@ github.com/hajimehoshi/oto v0.7.1/go.mod h1:wovJ8WWMfFKvP587mhHgot/MBr4DnNy9m6Ee
 github.com/jakecoffman/cp v1.1.0/go.mod h1:JjY/Fp6d8E1CHnu74gWNnU0+b9VzEdUVPoJxg2PsTQg=
 github.com/jfreymuth/oggvorbis v1.0.3/go.mod h1:1U4pqWmghcoVsCJJ4fRBKv9peUJMBHixthRlBeD6uII=
 github.com/jfreymuth/vorbis v1.0.2/go.mod h1:DoftRo4AznKnShRl1GxiTFCseHr4zR9BN3TWXyuzrqQ=
-github.com/kelindar/binary v1.0.13 h1:iEu63Z4X5jfsScVjHcrKCguyVhk3rcBwYNqA8vdyL/w=
-github.com/kelindar/binary v1.0.13/go.mod h1:dxvxQNUwEefl9p3BZz9K+8D6JuEnViify8ohGSNWVWU=
 github.com/kr/pretty v0.2.1/go.mod h1:ipq/a2n7PKx3OHsz4KJII5eveXtPO4qwEXGdVfWzfnI=
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
