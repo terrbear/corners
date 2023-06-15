@@ -13,7 +13,8 @@ var logLevel = log.InfoLevel
 var port = 8080
 var lobbyTimeout = 10
 var gameHost = "corners.terrbear.io:8080"
-var mapName = "maps/og"
+var mapName = "maps/wall"
+//var mapName = "random"
 var minPlayers = 1
 
 func Port() int {
@@ -63,7 +64,7 @@ func init() {
 		log.Infof("given invalid LOG_LEVEL=%s ; defaulting to INFO", os.Getenv("LOG_LEVEL"))
 	}
 	log.SetLevel(logLevel)
-	log.SetReportCaller(true)
+	//log.SetReportCaller(true)
 
 	port = parseEnvInt("PORT", 8080)
 	lobbyTimeout = parseEnvInt("LOBBY_TIMEOUT", 30)

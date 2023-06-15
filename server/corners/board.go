@@ -47,16 +47,6 @@ func (b *Board) TileNeighbours(tile *Tile) []*Tile {
 		}
 	}
 
-	/*
-		if object == "generator" {
-			tt.setAt(point.Offset(+0, -1), "claimed")
-			tt.setAt(point.Offset(-1, +0), "claimed")
-
-			tt.setAt(point.Offset(+1, +0), "claimed")
-			tt.setAt(point.Offset(+0, +1), "claimed")
-		}
-	 */
-
 	return neighbours
 }
 

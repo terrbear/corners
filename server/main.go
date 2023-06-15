@@ -196,5 +196,5 @@ func main() {
 	log.Info("starting server on port ", env.Port())
 	go timer()
 	http.HandleFunc("/play/", play)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", env.Port()), nil))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf("localhost:%d", env.Port()), nil))
 }

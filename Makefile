@@ -26,7 +26,7 @@ publish:
 	scp bin/linux/server ubuntu@corners.terrbear.io:
 
 run_dev_server:
-	LOG_LEVEL=debug LOBBY_TIMEOUT=0 ${GO_SERVER} run server/main.go
+	LOG_LEVEL=debug LOBBY_TIMEOUT=5 ${GO_SERVER} run server/main.go
 
 run_dev_client:
 	LOG_LEVEL=debug GAME_HOST=localhost:8080 ${GO_CLIENT} run client/main.go
